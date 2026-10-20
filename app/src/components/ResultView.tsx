@@ -3,6 +3,7 @@ import MatchCard from "./MatchCard";
 import MatchMap from "./MatchMap";
 import {
   INDUSTRY_LABELS,
+  type EliminationSummary,
   type Listing,
   type MatchState,
   type QualityResult,
@@ -22,6 +23,21 @@ const SPOILAGE: Record<SpoilageStatus, { label: string; color: string }> = {
   hafif_bozulmus: { label: "Hafif bozulmuş", color: "#ef6c00" },
   bozulmus: { label: "Bozulmuş", color: "#c62828" },
 };
+
+// Örn. "2 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."
+function eliminationText(eliminated: EliminationSummary): string | null {
+  const parts = [
+    [eliminated.loss, "zarar"],
+    [eliminated.distance, "mesafe"],
+    [eliminated.industry, "endüstri uyumsuzluğu"],
+    [eliminated.shelfLife, "raf ömrü"],
+  ] as const;
+  const text = parts
+    .filter(([count]) => count > 0)
+    .map(([count, reason]) => `${count} alıcı ${reason} nedeniyle`)
+    .join(", ");
+  return text ? `${text} elendi.` : null;
+}
 
 function scoreColor(score: number): string {
   if (score >= 70) return "#2e7d32";
@@ -57,7 +73,8 @@ function MatchSection({
           </Pressable>
         </View>
       );
-    case "done":
+    case "done": {
+      const eliminatedText = eliminationText(matchState.eliminated);
       return (
         <>
           {matchState.matches.length > 0 ? (
@@ -83,6 +100,7 @@ function MatchSection({
               </Text>
             </View>
           )}
+          {eliminatedText && <Text style={styles.eliminated}>{eliminatedText}</Text>}
           <MatchMap
             lat={listing.lat}
             lng={listing.lng}
@@ -91,6 +109,7 @@ function MatchSection({
           />
         </>
       );
+    }
   }
 }
 
@@ -193,6 +212,7 @@ const styles = StyleSheet.create({
   },
   retryText: { color: "#fff", fontWeight: "700" },
   empty: { backgroundColor: "#fff4e5", borderRadius: 8, padding: 12, gap: 4 },
+  eliminated: { fontSize: 13, color: "#777", fontStyle: "italic" },
   emptyTitle: { color: "#8a4b00", fontSize: 15, fontWeight: "700" },
   button: {
     backgroundColor: "#2e7d32",

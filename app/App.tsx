@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, View } from "react-native";
-import UploadForm from "./src/components/UploadForm";
+import UploadForm, { EMPTY_DRAFT, type FormDraft } from "./src/components/UploadForm";
 import LoadingView from "./src/components/LoadingView";
 import ResultView from "./src/components/ResultView";
 import { analyzeListing, findMatches } from "./src/services/api";
@@ -13,8 +13,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [lastListing, setLastListing] = useState<Listing | null>(null);
   const [matchState, setMatchState] = useState<MatchState>({ status: "skipped" });
-  // Değişince form sıfırlanır (yeni ilan); "Forma dön"de form verisi korunur.
-  const [formKey, setFormKey] = useState(0);
+  // Form verisi burada tutulur; "Forma dön"de korunur, "Yeni ilan"da sıfırlanır.
+  const [draft, setDraft] = useState<FormDraft>(EMPTY_DRAFT);
   // Geç gelen eşleştirme yanıtı yeni bir ilanın ekranını ezmesin.
   const matchRequestId = useRef(0);
 
@@ -26,8 +26,10 @@ export default function App() {
     }
     setMatchState({ status: "loading" });
     try {
-      const { radiusKm, matches } = await findMatches(listing, quality);
-      if (requestId === matchRequestId.current) setMatchState({ status: "done", radiusKm, matches });
+      const { radiusKm, matches, eliminated } = await findMatches(listing, quality);
+      if (requestId === matchRequestId.current) {
+        setMatchState({ status: "done", radiusKm, matches, eliminated });
+      }
     } catch (err) {
       if (requestId === matchRequestId.current) {
         setMatchState({
@@ -71,15 +73,19 @@ export default function App() {
     setError(null);
     setLastListing(null);
     setMatchState({ status: "skipped" });
-    setFormKey((key) => key + 1);
+    setDraft(EMPTY_DRAFT);
     setStep("form");
+  }
+
+  function handleDraftChange(patch: Partial<FormDraft>) {
+    setDraft((current) => ({ ...current, ...patch }));
   }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.container, step !== "form" && styles.hidden]}>
-        <UploadForm key={formKey} onSubmit={runAnalysis} />
-      </View>
+      {step === "form" && (
+        <UploadForm draft={draft} onDraftChange={handleDraftChange} onSubmit={runAnalysis} />
+      )}
       {step === "loading" && (
         <LoadingView error={error} onRetry={handleRetry} onBack={handleBackToForm} />
       )}
@@ -99,5 +105,4 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  hidden: { display: "none" },
 });

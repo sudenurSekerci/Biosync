@@ -26,7 +26,8 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   - Sürüm: **Expo SDK 57** (expo 57.0.x, React Native 0.86, React 19.2). Expo Go uyumu için SDK 58'e yükseltme yapma; Expo paketlerini `npx expo install` ile SDK 57 uyumlu sürümde tut.
 - **Backend:** **Node.js + Express** (tek `server` klasörü). Gemini anahtarı **sadece** burada, `.env`'de. Mobil kodda API anahtarı ASLA olmaz.
 - **AI:** Gemini Vision (resmi `@google/genai` SDK). Model adı `.env` → `GEMINI_MODEL`; koda sabit yazma.
-- **Harita:** `react-native-maps`
+- **Harita:** `react-native-maps` + OpenStreetMap görüntüleri (`UrlTile`, Android'de `mapType="none"`). Google katmanı Expo Go/Android'de siyah çizildiği için anahtarsız OSM kullanılır; "© OpenStreetMap katkıda bulunanlar" atfı zorunlu.
+  - **AÇIK SORUN:** OSM'ye geçişten sonra da harita Android/Expo Go'da hâlâ siyah. Sebep henüz bulunamadı; sıradaki seçenek (kullanıcı onayı gerekir): `react-native-maps` yerine OSM görüntülerini `Image` ile dizen sabit harita.
 - **Konum/Foto:** `expo-location`, `expo-image-picker`
 - **State:** React `useState` / `useReducer`. Navigasyon kütüphanesi YOK; tek ekranda `step` state'i ile koşullu render.
 - **Veri:** Alıcılar `server/data/buyers.ts` (veya `.json`) içinde statik mock.
@@ -83,6 +84,8 @@ type Match = {
 ```
 
 ## 6. Eşleştirme Mantığı (PDR §2 ve §5)
+Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [ESLESTIRME_MANTIGI.md](ESLESTIRME_MANTIGI.md). Sabit veya formül değişirse o belge de güncellenir.
+
 - Mesafe: **Haversine**, km.
 - `MAX_RADIUS_KM` sabiti (varsayılan 50) tek yerde tanımlı; bunu aşan alıcı **listeye girmez**.
 - Taşıma **araç bazlı** (miktardan bağımsız): `transportCost = TRIP_BASE_FEE_TRY + COST_PER_VEHICLE_KM_TRY * distanceKm`
@@ -92,7 +95,7 @@ type Match = {
 - Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: sefer ücreti 50 TL, araç-km 10 TL, 0,5 kg CO₂/km (dönüş dahil). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır.
 - Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `score` yarıya iner.
 - `score` (0-100) yalnız gösterim: en iyi net kâra oran × raf ömrü katsayısı; sıralamayı değiştirmez.
-- `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, matches }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir).
+- `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, matches, eliminated }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir). `eliminated` = sebebe göre elenen alıcı sayıları (`distance`, `industry`, `shelfLife`, `loss`); `evaluateBuyers` üretir, `matchBuyers` onun `matches` kısmını döner. Özete yalnızca `NEARBY_CONTEXT_KM` (100 km) içindeki alıcılar girer; sonuç ekranında tek satır: "2 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."
 - Alıcılar (`data/buyers.ts`): İstanbul/Ankara/Antalya, şehir başına 4 **kurgusal** alıcı (2 kârlı, 1 zarar eden, 1 yarıçap dışı); gerçek sanayi bölgesi/teknopark konumları. Kurgusal oldukları kodda ve kartta yazılı. Davranış `lib/matching.test.ts` (`npm test`) ile doğrulanır.
 - `quality.isOrganicByproduct === false` ise ilan eşleştirmeye **hiç girmez** (boş liste döner, alıcı aranmaz).
 - Alıcı, ürünün `suitableIndustries` listesiyle kesişmiyorsa ele.

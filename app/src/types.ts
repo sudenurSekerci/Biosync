@@ -1,6 +1,6 @@
 // Tipler server/lib/schema.ts'teki zod şemalarından türetilir (tek kaynak).
 // Sadece tip import'u: çalışma zamanında zod mobil pakete girmez.
-import type { Industry, Match } from "../../server/lib/schema";
+import type { EliminationSummary, Industry, Match } from "../../server/lib/schema";
 
 export type {
   Industry,
@@ -10,6 +10,7 @@ export type {
   Buyer,
   Match,
   MatchResponse,
+  EliminationSummary,
 } from "../../server/lib/schema";
 
 export type Step = "form" | "loading" | "result";
@@ -19,7 +20,7 @@ export type MatchState =
   | { status: "skipped" }
   | { status: "loading" }
   | { status: "error"; error: string }
-  | { status: "done"; radiusKm: number; matches: Match[] };
+  | { status: "done"; radiusKm: number; matches: Match[]; eliminated: EliminationSummary };
 
 export const INDUSTRY_LABELS: Record<Industry, string> = {
   biyoplastik: "Biyoplastik",

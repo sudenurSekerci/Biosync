@@ -13,9 +13,32 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import type { Listing } from "../types";
 
-type Props = { onSubmit: (listing: Listing) => void };
-
 type Photo = { uri: string; base64: string; mimeType: string };
+
+// Form verisi App'te tutulur: form yalnızca "form" adımında çizilir, "Forma dön"de veri korunur.
+export type FormDraft = {
+  photo: Photo | null;
+  wasteType: string;
+  quantityText: string;
+  latText: string;
+  lngText: string;
+  manualLocation: boolean;
+};
+
+export const EMPTY_DRAFT: FormDraft = {
+  photo: null,
+  wasteType: "",
+  quantityText: "",
+  latText: "",
+  lngText: "",
+  manualLocation: false,
+};
+
+type Props = {
+  draft: FormDraft;
+  onDraftChange: (patch: Partial<FormDraft>) => void;
+  onSubmit: (listing: Listing) => void;
+};
 
 // "12,5" gibi virgüllü girişleri de kabul eder; geçersizse null.
 function parseNumber(text: string): number | null {
@@ -31,13 +54,15 @@ const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
   base64: true,
 };
 
-export default function UploadForm({ onSubmit }: Props) {
-  const [photo, setPhoto] = useState<Photo | null>(null);
-  const [wasteType, setWasteType] = useState("");
-  const [quantityText, setQuantityText] = useState("");
-  const [latText, setLatText] = useState("");
-  const [lngText, setLngText] = useState("");
-  const [manualLocation, setManualLocation] = useState(false);
+export default function UploadForm({ draft, onDraftChange, onSubmit }: Props) {
+  const { photo, wasteType, quantityText, latText, lngText, manualLocation } = draft;
+  // Kısmi güncelleme: App tarafında önceki duruma birleştirilir (async akışlarda eski değer ezilmez).
+  const setPhoto = (value: Photo) => onDraftChange({ photo: value });
+  const setWasteType = (value: string) => onDraftChange({ wasteType: value });
+  const setQuantityText = (value: string) => onDraftChange({ quantityText: value });
+  const setLatText = (value: string) => onDraftChange({ latText: value });
+  const setLngText = (value: string) => onDraftChange({ lngText: value });
+  const setManualLocation = (value: boolean) => onDraftChange({ manualLocation: value });
   const [locating, setLocating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -89,8 +114,10 @@ export default function UploadForm({ onSubmit }: Props) {
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      setLatText(position.coords.latitude.toFixed(5));
-      setLngText(position.coords.longitude.toFixed(5));
+      onDraftChange({
+        latText: position.coords.latitude.toFixed(5),
+        lngText: position.coords.longitude.toFixed(5),
+      });
     } catch {
       setManualLocation(true);
       setNotice("Konum alınamadı. Enlem ve boylamı elle girebilirsiniz.");

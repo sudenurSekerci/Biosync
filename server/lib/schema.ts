@@ -74,8 +74,11 @@ export type Match = {
   score: number;
 };
 
+// Elenen alıcı sayıları (yalnızca NEARBY_CONTEXT_KM içindeki alıcılar sayılır).
+export type EliminationSummary = { distance: number; industry: number; shelfLife: number; loss: number };
+
 // MAX_RADIUS_KM tek yerde (lib/matching.ts) tanımlı; harita dairesi için yanıtla gönderilir.
-export type MatchResponse = { radiusKm: number; matches: Match[] };
+export type MatchResponse = { radiusKm: number; matches: Match[]; eliminated: EliminationSummary };
 
 export type Industry = z.infer<typeof industrySchema>;
 export type SpoilageStatus = z.infer<typeof spoilageStatusSchema>;

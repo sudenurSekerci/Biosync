@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { BUYERS } from "../data/buyers";
-import { haversineKm, MAX_RADIUS_KM, matchBuyers } from "./matching";
+import { evaluateBuyers, haversineKm, MAX_RADIUS_KM, matchBuyers } from "./matching";
 import { INDUSTRIES, type Buyer, type QualityResult } from "./schema";
 
 // Çalıştırma: npm test  (Node yerleşik test koşucusu, ek bağımlılık yok)
@@ -107,6 +107,30 @@ test("sıralama: netProfit azalan, eşitlikte co2 artan; ilk skor 100", () => {
   ]);
   assert.equal(tieMatches[0].netProfitTRY, tieMatches[1].netProfitTRY);
   assert.deepEqual(tieMatches.map((m) => m.buyer.id), ["tie-near", "tie-far"]);
+});
+
+test("elenen özeti: sebeplere göre sayılar, yalnız yakın çevredeki (100 km) alıcılar", () => {
+  const ist = evaluateBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, goodQuality, BUYERS);
+  assert.deepEqual(ist.eliminated, { distance: 1, industry: 0, shelfLife: 0, loss: 1 });
+
+  const ank15 = evaluateBuyers({ quantityKg: 15, ...CITY_POINTS.ank }, goodQuality, BUYERS);
+  assert.deepEqual(ank15.eliminated, { distance: 1, industry: 0, shelfLife: 0, loss: 2 });
+
+  const onlyVeganLeather: QualityResult = { ...goodQuality, suitableIndustries: ["vegan_deri"] };
+  const istLeather = evaluateBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, onlyVeganLeather, BUYERS);
+  assert.deepEqual(istLeather.eliminated, { distance: 1, industry: 2, shelfLife: 0, loss: 0 });
+
+  const expired = evaluateBuyers({ quantityKg: 100, ...CITY_POINTS.ayt }, { ...goodQuality, estimatedShelfLifeDays: 0 }, BUYERS);
+  assert.deepEqual(expired.eliminated, { distance: 1, industry: 0, shelfLife: 3, loss: 0 });
+
+  // Organik değilse alıcı hiç değerlendirilmez.
+  const notOrganic = evaluateBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, { ...goodQuality, isOrganicByproduct: false }, BUYERS);
+  assert.deepEqual(notOrganic.eliminated, { distance: 0, industry: 0, shelfLife: 0, loss: 0 });
+});
+
+test("matchBuyers, evaluateBuyers'ın eşleşmeleriyle aynıdır", () => {
+  const listing = { quantityKg: 100, ...CITY_POINTS.ank };
+  assert.deepEqual(matchBuyers(listing, goodQuality, BUYERS), evaluateBuyers(listing, goodQuality, BUYERS).matches);
 });
 
 test("saf fonksiyon: girdiyi değiştirmez, aynı girdiye aynı çıktı", () => {

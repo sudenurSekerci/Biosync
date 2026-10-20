@@ -1,4 +1,4 @@
-import type { Buyer, Match, MatchListing, QualityResult } from "./schema";
+import type { Buyer, EliminationSummary, Match, MatchListing, QualityResult } from "./schema";
 
 // ===== DEMO VARSAYIMLARI =====
 // Gerçek piyasa verisi değildir; prototipte davranışı göstermek için seçilmiş değerlerdir.
@@ -35,6 +35,12 @@ export const DRIVING_HOURS_PER_DAY = 8;
 /** Raf ömrü, gereken süreyi bu kadar günden az aşıyorsa skor yarıya iner (riskli eşleşme). */
 export const SHELF_LIFE_BUFFER_DAYS = 1;
 
+/**
+ * Elenen alıcı özetine yalnızca bu mesafedeki alıcılar girer. Daha uzaktakiler
+ * (örn. başka şehirdeki alıcılar) "bölge dışı" sayılır ve özette gösterilmez.
+ */
+export const NEARBY_CONTEXT_KM = 100;
+
 // ==============================
 
 const EARTH_RADIUS_KM = 6371;
@@ -56,22 +62,38 @@ const round = (value: number, digits: number) => {
 
 /**
  * Saf fonksiyon: aynı girdiye her zaman aynı çıktı, yan etki yok.
+ * Eşleşmeleri ve elenen alıcıların sebebe göre sayısını döner.
  * Sıralama: netProfit yüksekten düşüğe, eşitlikte co2Kg düşükten yükseğe.
  * score (0-100) yalnızca gösterim içindir: en iyi net kâra oranı × raf ömrü katsayısı.
  */
-export function matchBuyers(listing: MatchListing, quality: QualityResult, buyers: Buyer[]): Match[] {
-  if (!quality.isOrganicByproduct) return [];
+export function evaluateBuyers(
+  listing: MatchListing,
+  quality: QualityResult,
+  buyers: Buyer[]
+): { matches: Match[]; eliminated: EliminationSummary } {
+  const eliminated: EliminationSummary = { distance: 0, industry: 0, shelfLife: 0, loss: 0 };
+  if (!quality.isOrganicByproduct) return { matches: [], eliminated };
 
   const candidates: Array<Omit<Match, "score"> & { freshness: number }> = [];
 
   for (const buyer of buyers) {
-    if (!buyer.industries.some((industry) => quality.suitableIndustries.includes(industry))) continue;
-
     const distanceKm = round(haversineKm(listing.lat, listing.lng, buyer.lat, buyer.lng), 1);
-    if (distanceKm > MAX_RADIUS_KM) continue;
+    if (distanceKm > NEARBY_CONTEXT_KM) continue; // bölge dışı: özete de girmez
+    if (distanceKm > MAX_RADIUS_KM) {
+      eliminated.distance++;
+      continue;
+    }
+
+    if (!buyer.industries.some((industry) => quality.suitableIndustries.includes(industry))) {
+      eliminated.industry++;
+      continue;
+    }
 
     const requiredDays = HANDLING_DAYS + distanceKm / (AVG_SPEED_KMH * DRIVING_HOURS_PER_DAY);
-    if (quality.estimatedShelfLifeDays < requiredDays) continue;
+    if (quality.estimatedShelfLifeDays < requiredDays) {
+      eliminated.shelfLife++;
+      continue;
+    }
     const freshness = quality.estimatedShelfLifeDays < requiredDays + SHELF_LIFE_BUFFER_DAYS ? 0.5 : 1;
 
     const transportCostTRY = round(TRIP_BASE_FEE_TRY + COST_PER_VEHICLE_KM_TRY * distanceKm, 0);
@@ -80,7 +102,10 @@ export function matchBuyers(listing: MatchListing, quality: QualityResult, buyer
       0
     );
     const netProfitTRY = materialValueTRY - transportCostTRY;
-    if (netProfitTRY <= 0) continue;
+    if (netProfitTRY <= 0) {
+      eliminated.loss++;
+      continue;
+    }
 
     const co2Kg = round(distanceKm * EMISSION_KG_PER_VEHICLE_KM, 1);
     candidates.push({ buyer, distanceKm, transportCostTRY, materialValueTRY, netProfitTRY, co2Kg, freshness });
@@ -89,8 +114,14 @@ export function matchBuyers(listing: MatchListing, quality: QualityResult, buyer
   candidates.sort((a, b) => b.netProfitTRY - a.netProfitTRY || a.co2Kg - b.co2Kg);
 
   const bestProfit = candidates[0]?.netProfitTRY ?? 0;
-  return candidates.map(({ freshness, ...match }) => ({
+  const matches = candidates.map(({ freshness, ...match }) => ({
     ...match,
     score: bestProfit > 0 ? Math.round((match.netProfitTRY / bestProfit) * 100 * freshness) : 0,
   }));
+  return { matches, eliminated };
+}
+
+/** CLAUDE.md §6 imzası: yalnızca sıralı eşleşmeler. */
+export function matchBuyers(listing: MatchListing, quality: QualityResult, buyers: Buyer[]): Match[] {
+  return evaluateBuyers(listing, quality, buyers).matches;
 }

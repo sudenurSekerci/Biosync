@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { matchRequestSchema, type MatchResponse } from "../lib/schema";
-import { MAX_RADIUS_KM, matchBuyers } from "../lib/matching";
+import { evaluateBuyers, MAX_RADIUS_KM } from "../lib/matching";
 import { BUYERS } from "../data/buyers";
 
 export const matchRouter = Router();
@@ -14,9 +14,11 @@ matchRouter.post("/match", (req, res) => {
   }
 
   const { quality, ...listing } = parsed.data;
-  const matches = matchBuyers(listing, quality, BUYERS);
-  console.log(`[match] ${matches.length} eşleşme (${listing.quantityKg} kg, organik=${quality.isOrganicByproduct})`);
+  const { matches, eliminated } = evaluateBuyers(listing, quality, BUYERS);
+  console.log(
+    `[match] ${matches.length} eşleşme (${listing.quantityKg} kg, organik=${quality.isOrganicByproduct}) elenen=${JSON.stringify(eliminated)}`
+  );
 
-  const body: MatchResponse = { radiusKm: MAX_RADIUS_KM, matches };
+  const body: MatchResponse = { radiusKm: MAX_RADIUS_KM, matches, eliminated };
   res.json(body);
 });

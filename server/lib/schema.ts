@@ -44,7 +44,42 @@ export const listingSchema = z.object({
   mimeType: z.string().min(1),
 });
 
+// POST /match: görsel yeniden gönderilmez; yalnızca eşleştirmeye gereken alanlar.
+export const matchRequestSchema = z.object({
+  quantityKg: listingSchema.shape.quantityKg,
+  lat: listingSchema.shape.lat,
+  lng: listingSchema.shape.lng,
+  quality: qualityResultSchema,
+});
+
+// Sunucu tarafında üretilir (mock veri + saf hesap), bu yüzden zod doğrulaması gerekmez.
+export type Buyer = {
+  id: string;
+  name: string;
+  industries: Industry[];
+  lat: number;
+  lng: number;
+  pricePerKg: number;
+  locationName: string; // gerçek sanayi bölgesi/teknopark adı; alıcının kendisi kurgusal
+  isFictional: true;
+};
+
+export type Match = {
+  buyer: Buyer;
+  distanceKm: number;
+  transportCostTRY: number;
+  materialValueTRY: number;
+  netProfitTRY: number;
+  co2Kg: number;
+  score: number;
+};
+
+// MAX_RADIUS_KM tek yerde (lib/matching.ts) tanımlı; harita dairesi için yanıtla gönderilir.
+export type MatchResponse = { radiusKm: number; matches: Match[] };
+
 export type Industry = z.infer<typeof industrySchema>;
 export type SpoilageStatus = z.infer<typeof spoilageStatusSchema>;
 export type QualityResult = z.infer<typeof qualityResultSchema>;
 export type Listing = z.infer<typeof listingSchema>;
+export type MatchRequest = z.infer<typeof matchRequestSchema>;
+export type MatchListing = Pick<Listing, "quantityKg" | "lat" | "lng">;

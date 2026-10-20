@@ -1,14 +1,20 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { Industry, QualityResult, SpoilageStatus } from "../types";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import MatchCard from "./MatchCard";
+import MatchMap from "./MatchMap";
+import {
+  INDUSTRY_LABELS,
+  type Listing,
+  type MatchState,
+  type QualityResult,
+  type SpoilageStatus,
+} from "../types";
 
-type Props = { result: QualityResult; onReset: () => void };
-
-const INDUSTRY_LABELS: Record<Industry, string> = {
-  biyoplastik: "Biyoplastik",
-  "3d_filament": "3D Filament",
-  vegan_deri: "Vegan Deri",
-  kozmetik: "Kozmetik",
-  alternatif_gida: "Alternatif Gıda",
+type Props = {
+  result: QualityResult;
+  listing: Listing;
+  matchState: MatchState;
+  onRetryMatch: () => void;
+  onReset: () => void;
 };
 
 const SPOILAGE: Record<SpoilageStatus, { label: string; color: string }> = {
@@ -23,7 +29,72 @@ function scoreColor(score: number): string {
   return "#c62828";
 }
 
-export default function ResultView({ result, onReset }: Props) {
+function MatchSection({
+  listing,
+  matchState,
+  onRetryMatch,
+}: Pick<Props, "listing" | "matchState" | "onRetryMatch">) {
+  switch (matchState.status) {
+    case "skipped":
+      return (
+        <Text style={styles.muted}>
+          Organik yan ürün tespit edilmediği için alıcı eşleştirmesi yapılmadı.
+        </Text>
+      );
+    case "loading":
+      return (
+        <View style={styles.matchLoading}>
+          <ActivityIndicator color="#2e7d32" />
+          <Text style={styles.muted}>Yakındaki alıcılar aranıyor...</Text>
+        </View>
+      );
+    case "error":
+      return (
+        <View style={styles.matchError}>
+          <Text style={styles.matchErrorText}>{matchState.error}</Text>
+          <Pressable style={styles.retryButton} onPress={onRetryMatch}>
+            <Text style={styles.retryText}>Tekrar dene</Text>
+          </Pressable>
+        </View>
+      );
+    case "done":
+      return (
+        <>
+          {matchState.matches.length > 0 ? (
+            <>
+              <Text style={styles.matchFound}>
+                Eşleşme Bulundu: {matchState.matches.length} alıcı ({matchState.radiusKm} km içinde)
+              </Text>
+              {matchState.matches.map((match, index) => (
+                <MatchCard
+                  key={match.buyer.id}
+                  match={match}
+                  quantityKg={listing.quantityKg}
+                  isBest={index === 0}
+                />
+              ))}
+            </>
+          ) : (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Yakın çapta uygun alıcı bulunamadı</Text>
+              <Text style={styles.muted}>
+                {matchState.radiusKm} km içinde bu ürünü kârlı şekilde alabilecek alıcı yok. Küçük
+                miktarlarda taşıma maliyeti ürün değerini aşabilir.
+              </Text>
+            </View>
+          )}
+          <MatchMap
+            lat={listing.lat}
+            lng={listing.lng}
+            radiusKm={matchState.radiusKm}
+            matches={matchState.matches}
+          />
+        </>
+      );
+  }
+}
+
+export default function ResultView({ result, listing, matchState, onRetryMatch, onReset }: Props) {
   const spoilage = SPOILAGE[result.spoilageStatus];
 
   return (
@@ -70,6 +141,9 @@ export default function ResultView({ result, onReset }: Props) {
       <Text style={styles.section}>Değerlendirme</Text>
       <Text style={styles.summary}>{result.summary}</Text>
 
+      <Text style={styles.section}>Alıcı eşleşmeleri</Text>
+      <MatchSection listing={listing} matchState={matchState} onRetryMatch={onRetryMatch} />
+
       <Pressable style={styles.button} onPress={onReset}>
         <Text style={styles.buttonText}>Yeni ilan</Text>
       </Pressable>
@@ -106,6 +180,20 @@ const styles = StyleSheet.create({
   chipText: { color: "#2e7d32", fontSize: 14, fontWeight: "600" },
   summary: { fontSize: 15, color: "#333", lineHeight: 22 },
   muted: { fontSize: 13, color: "#777" },
+  matchFound: { fontSize: 15, fontWeight: "700", color: "#2e7d32" },
+  matchLoading: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 },
+  matchError: { backgroundColor: "#fdecea", borderRadius: 8, padding: 12, gap: 8 },
+  matchErrorText: { color: "#c62828", fontSize: 14 },
+  retryButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#2e7d32",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  retryText: { color: "#fff", fontWeight: "700" },
+  empty: { backgroundColor: "#fff4e5", borderRadius: 8, padding: 12, gap: 4 },
+  emptyTitle: { color: "#8a4b00", fontSize: 15, fontWeight: "700" },
   button: {
     backgroundColor: "#2e7d32",
     borderRadius: 8,

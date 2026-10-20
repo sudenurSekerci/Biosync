@@ -49,6 +49,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   routes/match.ts
   lib/gemini.ts
   lib/matching.ts
+  lib/matching.test.ts  (node:test, `npm test`; ek bağımlılık yok)
   lib/schema.ts     (zod şemaları + türetilmiş tipler; tek kaynak)
   data/buyers.ts
   .env.example
@@ -72,7 +73,8 @@ type QualityResult = {
   summary: string;              // 1-2 cümle, Türkçe
 };
 
-type Buyer = { id: string; name: string; industries: Industry[]; lat: number; lng: number; pricePerKg: number };
+type Buyer = { id: string; name: string; industries: Industry[]; lat: number; lng: number; pricePerKg: number;
+  locationName: string; isFictional: true };   // locationName: gerçek bölge adı; alıcı kurgusal
 
 type Match = {
   buyer: Buyer; distanceKm: number; transportCostTRY: number;
@@ -83,11 +85,15 @@ type Match = {
 ## 6. Eşleştirme Mantığı (PDR §2 ve §5)
 - Mesafe: **Haversine**, km.
 - `MAX_RADIUS_KM` sabiti (varsayılan 50) tek yerde tanımlı; bunu aşan alıcı **listeye girmez**.
-- `transportCost = distanceKm * COST_PER_KM_PER_TON * (quantityKg/1000)`
+- Taşıma **araç bazlı** (miktardan bağımsız): `transportCost = TRIP_BASE_FEE_TRY + COST_PER_VEHICLE_KM_TRY * distanceKm`
 - `materialValue = quantityKg * buyer.pricePerKg * (qualityScore/100)`
 - `netProfit = materialValue - transportCost`; `netProfit <= 0` ise eşleşme yok.
-- `co2Kg = distanceKm * (quantityKg/1000) * EMISSION_FACTOR` (sabitler dosya başında, açıklamalı).
-- Raf ömrü düşükse (ör. `estimatedShelfLifeDays` < mesafeye göre gereken süre) skoru düşür/ele.
+- `co2Kg = distanceKm * EMISSION_KG_PER_VEHICLE_KM` (araç-km bazlı).
+- Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: sefer ücreti 50 TL, araç-km 10 TL, 0,5 kg CO₂/km (dönüş dahil). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır.
+- Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `score` yarıya iner.
+- `score` (0-100) yalnız gösterim: en iyi net kâra oran × raf ömrü katsayısı; sıralamayı değiştirmez.
+- `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, matches }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir).
+- Alıcılar (`data/buyers.ts`): İstanbul/Ankara/Antalya, şehir başına 4 **kurgusal** alıcı (2 kârlı, 1 zarar eden, 1 yarıçap dışı); gerçek sanayi bölgesi/teknopark konumları. Kurgusal oldukları kodda ve kartta yazılı. Davranış `lib/matching.test.ts` (`npm test`) ile doğrulanır.
 - `quality.isOrganicByproduct === false` ise ilan eşleştirmeye **hiç girmez** (boş liste döner, alıcı aranmaz).
 - Alıcı, ürünün `suitableIndustries` listesiyle kesişmiyorsa ele.
 - Sıralama: önce `netProfit` yüksek, eşitlikte `co2Kg` düşük. İlk sonuç "En Kârlı Eşleşme" olarak vurgulanır.
@@ -132,7 +138,7 @@ type Match = {
 ### Faz 3 – Lokal Eşleştirme + Harita
 - `buyers.ts` içinde 6-8 kurgusal alıcı (farklı endüstriler, bazıları yarıçap dışında).
 - `POST /match` (veya mobilde saf fonksiyon) → `Match[]`.
-- Sonuç ekranında: "Eşleşme Bulundu" kartları (alıcı, mesafe, taşıma maliyeti, net kâr, CO₂) + haritada kullanıcı ve **yalnız yarıçap içindeki** alıcılar + yarıçap dairesi.
+- Sonuç ekranında: "Eşleşme Bulundu" kartları (alıcı, mesafe, taşıma maliyeti, net kâr, CO₂, "Çöpe gitmesi önlenen: X kg", "Kurgusal demo alıcısı") + haritada kullanıcı ve **yalnız yarıçap içindeki** alıcılar + yarıçap dairesi.
 - Eşleşme yoksa "Yakın çapta uygun alıcı bulunamadı" mesajı.
 - **Bitti:** Konum değişince liste/harita değişiyor; yarıçap dışı alıcı görünmüyor; netProfit ≤ 0 olan çıkmıyor.
 

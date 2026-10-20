@@ -1,5 +1,6 @@
 import express, { type ErrorRequestHandler } from "express";
 import { analyzeRouter } from "./routes/analyze";
+import { matchRouter } from "./routes/match";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -11,6 +12,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use(analyzeRouter);
+app.use(matchRouter);
 
 // JSON ayrıştırma/boyut hataları: varsayılan işleyici hata mesajında gövdeden parça
 // (base64) basabildiği için burada yakalanır ve gövde loglanmaz.

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env index.ts",
     "start": "tsx --env-file-if-exists=.env index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test lib/matching.test.ts"
   },
   "keywords": [],
   "author": "",

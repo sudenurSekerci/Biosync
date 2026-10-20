@@ -23,7 +23,7 @@ npx expo install --fix      # fix incompatible package versions
 
 Run lint and typecheck before declaring any task done.
 
-Navigasyon için .mdc kurallarına uy.
+Navigasyon için CLAUDE.md kurallarına uy.
 
 ## Rules
 

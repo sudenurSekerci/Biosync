@@ -2,6 +2,8 @@
 
 > Kaynak: BioSync PDR. Bu dosya ile PDR çelişirse PDR geçerlidir. PDR'da olmayan hiçbir özellik ekleme.
 
+Expo kuralları: @app/AGENTS.md (çelişirse bu dosya geçerlidir)
+
 ## 1. Ürün (PDR özeti)
 BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve kabukları, kahve posası, standart dışı sebzeler) bunları hammadde olarak kullanan **biyomateryal (biyoplastik, 3D filament, vegan deri), kozmetik ve alternatif gıda** üreticileriyle eşleştiren B2B pazar yeridir.
 
@@ -30,6 +32,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 - **Doğrulama:** `zod` (server) — Gemini yanıtı `QualityResult` zod şemasıyla doğrulanır.
 - **Server TS araçları:** `tsx` (çalıştırma), `typescript`, `@types/express`, `@types/node`.
 - **Env:** `dotenv` YOK; Node'un `--env-file=.env` seçeneği kullanılır.
+- **Lint (app):** `eslint` + `eslint-config-expo` (devDependency, `npx expo lint` varsayılan kurulumu). Ek eklenti/kural paketi yok.
 - Bu listenin dışında bağımlılık eklenmez.
 
 ## 4. Klasör Yapısı

@@ -23,6 +23,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 
 ## 3. Teknoloji (sabit, değiştirme)
 - **Mobil:** React Native + **Expo (managed, Expo Go ile çalışmalı)** + **TypeScript**
+  - Sürüm: **Expo SDK 57** (expo 57.0.x, React Native 0.86, React 19.2). Expo Go uyumu için SDK 58'e yükseltme yapma; Expo paketlerini `npx expo install` ile SDK 57 uyumlu sürümde tut.
 - **Backend:** **Node.js + Express** (tek `server` klasörü). Gemini anahtarı **sadece** burada, `.env`'de. Mobil kodda API anahtarı ASLA olmaz.
 - **AI:** Gemini Vision (resmi `@google/genai` SDK). Model adı `.env` → `GEMINI_MODEL`; koda sabit yazma.
 - **Harita:** `react-native-maps`

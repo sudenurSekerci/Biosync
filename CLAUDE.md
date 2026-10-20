@@ -49,16 +49,18 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   routes/match.ts
   lib/gemini.ts
   lib/matching.ts
+  lib/schema.ts     (zod şemaları + türetilmiş tipler; tek kaynak)
   data/buyers.ts
   .env.example
 ```
 Bunun dışında klasör/katman icat etme.
 
 ## 5. Veri Sözleşmeleri (types.ts ve server ile aynı olmalı)
+`Industry`, `Listing`, `QualityResult` → `server/lib/schema.ts` içinde zod şeması olarak tanımlı, tipler `z.infer` ile türetilir. `app/src/types.ts` bunları **sadece `import type`** ile yeniden dışa aktarır (mobil pakete zod girmez). Tipi elle ikinci kez yazma.
 ```ts
 type Industry = "biyoplastik" | "3d_filament" | "vegan_deri" | "kozmetik" | "alternatif_gida";
 
-type Listing = { quantityKg: number; lat: number; lng: number; imageBase64: string; mimeType: string };
+type Listing = { wasteType: string; quantityKg: number; lat: number; lng: number; imageBase64: string; mimeType: string };
 
 type QualityResult = {
   productType: string;          // örn. "portakal kabuğu"
@@ -98,7 +100,7 @@ type Match = {
 
 ## 8. UI Kuralları
 - Tek ekran, `step: "form" | "loading" | "result"`.
-- Form: miktar (kg, sayısal), konum ("Konumumu al" butonu ile `expo-location`; izin reddedilirse elle enlem/boylam girişi), foto (kamera/galeri), "Analiz Et" (alanlar eksikse pasif).
+- Form: fotoğraf, atık türü (serbest metin), miktar (kg, sayısal), konum ("Konumumu al" butonu ile `expo-location`; izin reddedilirse elle enlem/boylam girişi), foto (kamera/galeri), "Analiz Et" (alanlar eksikse pasif).
 - Sonuç: kalite puanı (büyük), bozulma durumu, uygun endüstriler, ardından eşleşme kartları + harita.
 - Metinler Türkçe. Boş/yükleme/hata durumlarının hepsi tasarlanmış olmalı.
 - Süslü animasyon/tema sistemi ekleme.

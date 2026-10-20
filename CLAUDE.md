@@ -64,10 +64,11 @@ type Listing = { wasteType: string; quantityKg: number; lat: number; lng: number
 
 type QualityResult = {
   productType: string;          // örn. "portakal kabuğu"
+  isOrganicByproduct: boolean;  // false → sonuçta "Organik yan ürün tespit edilmedi", eşleştirmeye girmez
   qualityScore: number;         // 0-100, "Kalite Güven Puanı"
   spoilageStatus: "taze" | "hafif_bozulmus" | "bozulmus";
   estimatedShelfLifeDays: number;
-  suitableIndustries: Industry[];
+  suitableIndustries: Industry[]; // en uygun 1-3, uygunluk sırasına göre (en fazla 3); organik değilse boş
   summary: string;              // 1-2 cümle, Türkçe
 };
 
@@ -87,6 +88,7 @@ type Match = {
 - `netProfit = materialValue - transportCost`; `netProfit <= 0` ise eşleşme yok.
 - `co2Kg = distanceKm * (quantityKg/1000) * EMISSION_FACTOR` (sabitler dosya başında, açıklamalı).
 - Raf ömrü düşükse (ör. `estimatedShelfLifeDays` < mesafeye göre gereken süre) skoru düşür/ele.
+- `quality.isOrganicByproduct === false` ise ilan eşleştirmeye **hiç girmez** (boş liste döner, alıcı aranmaz).
 - Alıcı, ürünün `suitableIndustries` listesiyle kesişmiyorsa ele.
 - Sıralama: önce `netProfit` yüksek, eşitlikte `co2Kg` düşük. İlk sonuç "En Kârlı Eşleşme" olarak vurgulanır.
 - Bu fonksiyon **saf (pure)** olmalı; `matchBuyers(listing, quality, buyers): Match[]`.
@@ -95,6 +97,9 @@ type Match = {
 - Çağrı sadece `server/lib/gemini.ts` içinde.
 - Çıktıyı **JSON schema / `responseMimeType: "application/json"`** ile iste; sonucu `QualityResult` zod şemasıyla doğrula. Doğrulanamazsa 502 + anlaşılır hata dön, uydurma varsayılan değer döndürme.
 - Sistem promptu (Türkçe, değiştirme): *"Sen bir endüstriyel hammadde ve tarım kalite uzmanısın. Fotoğraftaki tarımsal yan ürünün türünü belirle, kalite standardını ve bozulma durumunu analiz et, kalan raf ömrünü tahmin et, 0-100 arası 'Kalite Güven Puanı' ver ve uygun olduğu endüstrileri (biyoplastik, 3d_filament, vegan_deri, kozmetik, alternatif_gida) seç. Fotoğrafta tarımsal yan ürün yoksa qualityScore 0 ver. Sadece şemaya uygun JSON dön."*
+  - Faz 2 eki (sabit metnin sonuna): metin alanları Türkçe, summary 1-2 cümle; fotoğraf organik yan ürün değilse `isOrganicByproduct: false`, düşük puan, boş `suitableIndustries` ve summary'de sebep. Endüstrilerin hepsi listelenmez: en uygun 1-3 tanesi uygunluk sırasıyla seçilir. Kullanıcının beyan ettiği `wasteType` ipucu olarak gönderilir, fotoğrafla doğrulanır.
+- Gemini'ye şema `responseJsonSchema` ile, `z.toJSONSchema(qualityResultSchema)`'dan türetilip desteklenmeyen anahtarlar (`$schema`, `minLength` vb.) ayıklanarak verilir.
+- Loglara API anahtarı, istek gövdesi veya base64 yazılmaz.
 - Görsel gönderirken boyutu küçült (`expo-image-picker` `quality: 0.5`, base64).
 - Zaman aşımı 30 sn; mobilde hata ekranı + "Tekrar dene" butonu.
 

@@ -15,13 +15,24 @@ export const industrySchema = z.enum(INDUSTRIES);
 
 export const spoilageStatusSchema = z.enum(["taze", "hafif_bozulmus", "bozulmus"]);
 
+// .describe() metinleri Gemini'ye giden JSON şemasında alan açıklaması olarak kullanılır.
 export const qualityResultSchema = z.object({
-  productType: z.string().min(1),
-  qualityScore: z.number().min(0).max(100),
+  productType: z.string().min(1).describe("Ürün türü, Türkçe (örn. portakal kabuğu)"),
+  // false ise ilan eşleştirmeye girmez (Faz 3).
+  isOrganicByproduct: z
+    .boolean()
+    .describe("Fotoğrafta organik (tarımsal/gıda kökenli) bir yan ürün var mı"),
+  qualityScore: z.number().min(0).max(100).describe("Kalite Güven Puanı, 0-100"),
   spoilageStatus: spoilageStatusSchema,
-  estimatedShelfLifeDays: z.number().min(0),
-  suitableIndustries: z.array(industrySchema),
-  summary: z.string().min(1),
+  estimatedShelfLifeDays: z.number().min(0).describe("Tahmini kalan raf ömrü, gün"),
+  suitableIndustries: z
+    .array(industrySchema)
+    .max(3)
+    .describe("En uygun 1-3 endüstri, en uygundan başlayarak; organik yan ürün değilse boş"),
+  summary: z
+    .string()
+    .min(1)
+    .describe("1-2 cümlelik Türkçe değerlendirme; düşük puanda sebebini açıkla"),
 });
 
 export const listingSchema = z.object({

@@ -37,14 +37,22 @@ export default function ResultView({ result, onReset }: Props) {
         <Text style={styles.scoreLabel}>Kalite Güven Puanı / 100</Text>
       </View>
 
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Bozulma durumu</Text>
-        <Text style={[styles.infoValue, { color: spoilage.color }]}>{spoilage.label}</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Tahmini raf ömrü</Text>
-        <Text style={styles.infoValue}>{result.estimatedShelfLifeDays} gün</Text>
-      </View>
+      {result.isOrganicByproduct ? (
+        <>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Bozulma durumu</Text>
+            <Text style={[styles.infoValue, { color: spoilage.color }]}>{spoilage.label}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Tahmini raf ömrü</Text>
+            <Text style={styles.infoValue}>{result.estimatedShelfLifeDays} gün</Text>
+          </View>
+        </>
+      ) : (
+        <View style={styles.notOrganic}>
+          <Text style={styles.notOrganicText}>Organik yan ürün tespit edilmedi</Text>
+        </View>
+      )}
 
       <Text style={styles.section}>Uygun endüstriler</Text>
       {result.suitableIndustries.length > 0 ? (
@@ -90,6 +98,8 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: 15, color: "#555" },
   infoValue: { fontSize: 15, fontWeight: "600", color: "#222" },
+  notOrganic: { backgroundColor: "#fdecea", borderRadius: 8, padding: 12 },
+  notOrganicText: { color: "#c62828", fontSize: 15, fontWeight: "600", textAlign: "center" },
   section: { fontSize: 15, fontWeight: "600", marginTop: 16, color: "#222" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { backgroundColor: "#e8f5e9", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },

@@ -219,7 +219,7 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 | Skor sıralamayı değiştirmez | CLAUDE.md §6: sıralama net kâr, eşitlikte CO₂ |
 | Elenme özeti yalnız 100 km içi | Diğer şehirlerin alıcıları "mesafe" sayılırsa özet anlamsızlaşır |
 | Görsel `/match`'e tekrar gönderilmez | Eşleştirme yalnızca miktar, konum ve kalite sonucuna ihtiyaç duyar |
-| Harita: OpenStreetMap görüntüleri | Expo Go'da Google haritası Android'de siyah çizildi; OSM anahtarsızdır (atıf zorunlu, yoğun trafik için değil). **Açık sorun:** OSM ile de harita hâlâ siyah; bkz. CLAUDE.md §3 |
+| Harita: WebView + Leaflet + OpenStreetMap | Expo Go/Android'de `react-native-maps` (Google Maps SDK) haritayı hiç çizmedi: `onMapReady` geldi, `onMapLoaded` ve görüntü isteği hiç gelmedi (sunucu üzerinden yapılan teşhisle kanıtlandı). Leaflet WebView içinde çalışır, anahtar gerektirmez; OSM atfı zorunlu, sunucusu yoğun trafik için değildir (demo) |
 
 ## 8. Bilinen sınırlar
 

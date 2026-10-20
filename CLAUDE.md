@@ -26,8 +26,8 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   - Sürüm: **Expo SDK 57** (expo 57.0.x, React Native 0.86, React 19.2). Expo Go uyumu için SDK 58'e yükseltme yapma; Expo paketlerini `npx expo install` ile SDK 57 uyumlu sürümde tut.
 - **Backend:** **Node.js + Express** (tek `server` klasörü). Gemini anahtarı **sadece** burada, `.env`'de. Mobil kodda API anahtarı ASLA olmaz.
 - **AI:** Gemini Vision (resmi `@google/genai` SDK). Model adı `.env` → `GEMINI_MODEL`; koda sabit yazma.
-- **Harita:** `react-native-maps` + OpenStreetMap görüntüleri (`UrlTile`, Android'de `mapType="none"`). Google katmanı Expo Go/Android'de siyah çizildiği için anahtarsız OSM kullanılır; "© OpenStreetMap katkıda bulunanlar" atfı zorunlu.
-  - **AÇIK SORUN:** OSM'ye geçişten sonra da harita Android/Expo Go'da hâlâ siyah. Sebep henüz bulunamadı; sıradaki seçenek (kullanıcı onayı gerekir): `react-native-maps` yerine OSM görüntülerini `Image` ile dizen sabit harita.
+- **Harita:** `react-native-webview` (`npx expo install`, Expo Go'da hazır) içinde **Leaflet 1.9.4** (unpkg CDN, sabit sürüm + SRI; npm paketi değil) + OpenStreetMap görüntüleri. Anahtar gerekmez; "© OpenStreetMap katkıda bulunanlar" atfı zorunlu ve görünür kalır.
+  - `react-native-maps` **kaldırıldı**: Expo Go/Android'de Google Maps SDK haritayı hiç çizmedi. Teşhis kanıtı: `onMapReady` geldi; `onMapLoaded` ve tek bir görüntü isteği gelmedi; işaretçiler/daire de çizilmedi. Görüntü engelleme değildi (OSM 200 döndü). Geliştirme derlemesine geçilmez; Expo Go'da kalınır.
 - **Konum/Foto:** `expo-location`, `expo-image-picker`
 - **State:** React `useState` / `useReducer`. Navigasyon kütüphanesi YOK; tek ekranda `step` state'i ile koşullu render.
 - **Veri:** Alıcılar `server/data/buyers.ts` (veya `.json`) içinde statik mock.

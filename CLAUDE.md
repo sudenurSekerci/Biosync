@@ -33,6 +33,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 - **Konum/Foto:** `expo-location`, `expo-image-picker`, `expo-image-manipulator` (göndermeden önce uzun kenar 1024 px, JPEG 0.6; Vercel ~4,5 MB istek sınırı).
 - **Web:** `react-dom`, `react-native-web`, `@expo/metro-runtime` (`npx expo install`). Harita web'de aynı Leaflet HTML'iyle `iframe srcDoc` (tek bileşen, `Platform.OS` ayrımı). Her özellik hem Expo Go'da hem web'de çalışmalı.
 - **Canlı:** Vercel, iki ayrı proje: `server` (Express zero-config, `export default app`, `VERCEL` varken `listen` yok; ESM olduğu için göreli import'lar `.js` uzantılı) ve `app` (`app/vercel.json`: `npx expo export -p web` → `dist`). Ortam değişkenleri: server'da `GEMINI_API_KEY`, `GEMINI_MODEL`, `CORS_ORIGINS`; app'te `EXPO_PUBLIC_API_URL`. CORS paket kullanmadan `server/index.ts` içinde.
+  - `server/tsconfig.json`'daki `"typeRoots": ["./node_modules/@types"]` **silinmez**: Vercel, TS'yi `/tmp` altında bizim tsconfig'i `extends` eden geçici bir config ile derler; açık `typeRoots` yoksa `types: ["node"]` bulunamaz (TS2688, derleme durur). Değişiklikten önce `npx vercel build --yes` ile yerelde denenebilir.
 - **State:** React `useState` / `useReducer`. Navigasyon kütüphanesi YOK; tek ekranda `step` state'i ile koşullu render.
 - **Veri:** Alıcılar `server/data/buyers.ts` (veya `.json`) içinde statik mock.
 - **Doğrulama:** `zod` (server) — Gemini yanıtı `QualityResult` zod şemasıyla doğrulanır.

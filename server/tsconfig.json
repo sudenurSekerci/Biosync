@@ -4,6 +4,7 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,

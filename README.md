@@ -233,4 +233,8 @@ npx expo lint
 - **Tahmini değerler**: Taşıma maliyeti, CO₂ ve net iklim etkisi demo varsayımlarına dayanır; ayrıntı ve kaynaklar
   [docs/ESLESTIRME_MANTIGI.md](docs/ESLESTIRME_MANTIGI.md) içinde.
 - **Harita**: OpenStreetMap'in herkese açık görüntü sunucusu yoğun trafik için değildir; prototip/demo içindir.
+- **Sunucu erişimi (CORS)**: Canlı sunucuda `CORS_ORIGINS` şimdilik boş; bu yüzden herhangi bir web sitesi
+  tarayıcı üzerinden `/analyze` ve `/match` uçlarını çağırabilir (Gemini kotası tüketilebilir). CORS zaten
+  tarayıcı dışı istekleri engellemez; asıl koruma, uçların giriş yapmış kullanıcı (kimlik doğrulama) istemesiyle
+  gelecek. Kısa vadede sıkılaştırmak için: sunucu projesinde `CORS_ORIGINS=https://biosync-app-blond.vercel.app`.
 - Kapsam dışı (bilinçli): giriş/hesap, ödeme, veritabanı, bildirim, mesajlaşma, gerçek alıcı kaydı.

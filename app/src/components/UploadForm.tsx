@@ -276,7 +276,7 @@ export default function UploadForm({ draft, onDraftChange, onSubmit }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, paddingTop: 56, gap: 8 },
+  container: { padding: 20, gap: 8 },
   title: { fontSize: 24, fontWeight: "700", color: "#1b3a1b" },
   subtitle: { fontSize: 14, color: "#555", marginBottom: 8 },
   label: { fontSize: 15, fontWeight: "600", marginTop: 12, color: "#222" },

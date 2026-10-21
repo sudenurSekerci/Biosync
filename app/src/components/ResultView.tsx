@@ -188,7 +188,7 @@ export default function ResultView({ result, listing, matchState, onRetryMatch, 
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, paddingTop: 56, gap: 8 },
+  container: { padding: 20, gap: 8 },
   product: { fontSize: 22, fontWeight: "700", color: "#1b3a1b", textTransform: "capitalize" },
   scoreBox: {
     alignItems: "center",

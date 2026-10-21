@@ -33,6 +33,13 @@ export default function MatchCard({ match, quantityKg, isBest }: Props) {
         <Text style={styles.value}>{formatTRY(match.materialValueTRY)}</Text>
       </View>
       <View style={styles.row}>
+        <Text style={styles.label}>Araç</Text>
+        <Text style={styles.value}>
+          {match.vehicle.label}
+          {match.vehicle.trips > 1 ? ` × ${match.vehicle.trips} sefer` : ""}
+        </Text>
+      </View>
+      <View style={styles.row}>
         <Text style={styles.label}>Taşıma maliyeti</Text>
         <Text style={styles.value}>−{formatTRY(match.transportCostTRY)}</Text>
       </View>

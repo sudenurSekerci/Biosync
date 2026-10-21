@@ -32,6 +32,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   - `react-native-maps` **kaldırıldı**: Expo Go/Android'de Google Maps SDK haritayı hiç çizmedi. Teşhis kanıtı: `onMapReady` geldi; `onMapLoaded` ve tek bir görüntü isteği gelmedi; işaretçiler/daire de çizilmedi. Görüntü engelleme değildi (OSM 200 döndü). Geliştirme derlemesine geçilmez; Expo Go'da kalınır.
 - **Konum/Foto:** `expo-location`, `expo-image-picker`, `expo-image-manipulator` (göndermeden önce uzun kenar 1024 px, JPEG 0.6; Vercel ~4,5 MB istek sınırı).
 - **Web:** `react-dom`, `react-native-web`, `@expo/metro-runtime` (`npx expo install`). Harita web'de aynı Leaflet HTML'iyle `iframe srcDoc` (tek bileşen, `Platform.OS` ayrımı). Her özellik hem Expo Go'da hem web'de çalışmalı.
+- **Yerleşim:** `react-native-safe-area-context` (`SafeAreaProvider` + `SafeAreaView`, tüm kenarlar; sabit `paddingTop` yok). Geniş ekranda (web) içerik ortada en fazla 480 px sütun, kenarlar nötr gri (`#eef0f2`); dar ekranda tam genişlik.
 - **Canlı:** Vercel, iki ayrı proje: `server` (Express zero-config, `export default app`, `VERCEL` varken `listen` yok; ESM olduğu için göreli import'lar `.js` uzantılı) ve `app` (`app/vercel.json`: `npx expo export -p web` → `dist`). Ortam değişkenleri: server'da `GEMINI_API_KEY`, `GEMINI_MODEL`, `CORS_ORIGINS`; app'te `EXPO_PUBLIC_API_URL`. CORS paket kullanmadan `server/index.ts` içinde.
   - `server/tsconfig.json`'daki `"typeRoots": ["./node_modules/@types"]` **silinmez**: Vercel, TS'yi `/tmp` altında bizim tsconfig'i `extends` eden geçici bir config ile derler; açık `typeRoots` yoksa `types: ["node"]` bulunamaz (TS2688, derleme durur). Değişiklikten önce `npx vercel build --yes` ile yerelde denenebilir.
 - **State:** React `useState` / `useReducer`. Navigasyon kütüphanesi YOK; tek ekranda `step` state'i ile koşullu render.
@@ -92,6 +93,7 @@ type Match = {
   buyer: Buyer; distanceKm: number; transportCostTRY: number;
   materialValueTRY: number; netProfitTRY: number; co2Kg: number;
   netImpactCo2eKg: number;   // tahmini: miktar × önlenen çöplük emisyonu − co2Kg (pozitif = tasarruf)
+  vehicle: { type: "hafif_ticari" | "kamyonet" | "kamyon"; label: string; trips: number };
   score: number;
 };
 ```
@@ -101,12 +103,12 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLEST
 
 - Mesafe: **Haversine**, km.
 - `MAX_RADIUS_KM` sabiti (varsayılan 50) tek yerde tanımlı; bunu aşan alıcı **listeye girmez**.
-- Taşıma **araç bazlı** (miktardan bağımsız): `transportCost = TRIP_BASE_FEE_TRY + COST_PER_VEHICLE_KM_TRY * distanceKm`
+- Taşıma **araç bazlı, kapasiteli**: `selectVehicle(quantityKg)` miktarı taşıyabilen en küçük aracı seçer (`VEHICLE_CLASSES`: hafif ticari 1 t / kamyonet 3,5 t / kamyon 12 t); 12 t üstü çoklu kamyon seferi. `transportCost = trips * (baseFeeTRY + costPerKmTRY * distanceKm)`
 - `materialValue = quantityKg * buyer.pricePerKg * (qualityScore/100)`
 - `netProfit = materialValue - transportCost`; `netProfit <= 0` ise eşleşme yok.
-- `co2Kg = distanceKm * EMISSION_KG_PER_VEHICLE_KM` (araç-km bazlı).
+- `co2Kg = trips * distanceKm * emissionKgPerKm` (seçilen aracın araç-km emisyonu).
 - `netImpactCo2eKg = quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg`. Katsayı ≈0,595 kg CO₂e/kg, kaynak EPA WARM v15 (Tablo 1, "Fruits and Vegetables" 0,54 MTCO2E/kısa ton); kaynak `lib/matching.ts`'te yazılı. Ekranda **"tahmini"** ibaresiyle, en kârlı eşleşme için tek satır gösterilir. Kaynaksız katsayı eklenmez.
-- Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: sefer ücreti 50 TL, araç-km 10 TL, 0,5 kg CO₂/km (dönüş dahil). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır.
+- Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: araç sınıfları (hafif ticari: 50 TL sefer, 10 TL/km, 0,5 kg CO₂/km; kamyonet: 150 / 16 / 0,8; kamyon: 400 / 26 / 1,6; dönüş dahil). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır. Kartta "Araç" satırı.
 - Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `score` yarıya iner.
 - `score` (0-100) yalnız gösterim: en iyi net kâra oran × raf ömrü katsayısı; sıralamayı değiştirmez.
 - `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, matches, eliminated }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir). `eliminated` = sebebe göre elenen alıcı sayıları (`distance`, `industry`, `shelfLife`, `loss`); `evaluateBuyers` üretir, `matchBuyers` onun `matches` kısmını döner. Özete yalnızca `NEARBY_CONTEXT_KM` (100 km) içindeki alıcılar girer; sonuç ekranında tek satır: "2 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."

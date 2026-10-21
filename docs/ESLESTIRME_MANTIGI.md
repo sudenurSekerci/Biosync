@@ -43,21 +43,34 @@ d = 2 · R · asin(√a)          R = 6371 km
 φ enlem, λ boylam (radyan). Sonuç 0,1 km'ye yuvarlanır. Kuş uçuşu olduğu için gerçek yol mesafesinden
 kısadır (şehir içinde tipik olarak %20-40 daha kısa); demo için bilinçli bir basitleştirmedir.
 
-### 2.2 Taşıma maliyeti – araç bazlı
+### 2.2 Taşıma maliyeti – araç bazlı, kapasiteli
+
+Önce miktara göre araç seçilir (`selectVehicle`): miktarı **tek seferde taşıyabilen en küçük araç**.
+En büyük aracın kapasitesi aşılırsa kamyon **çoklu sefer** yapar.
+
+| Araç | Kapasite | Sefer ücreti | Araç-km (dönüş dahil) | Emisyon (dönüş dahil) |
+|------|---------:|-------------:|----------------------:|----------------------:|
+| Hafif ticari (panelvan) | 1.000 kg | 50 TL | 10 TL/km | 0,5 kg CO₂/km |
+| Kamyonet | 3.500 kg | 150 TL | 16 TL/km | 0,8 kg CO₂/km |
+| Kamyon | 12.000 kg | 400 TL | 26 TL/km | 1,6 kg CO₂/km |
 
 ```
-taşımaMaliyeti = TRIP_BASE_FEE_TRY + COST_PER_VEHICLE_KM_TRY × d
-              = 50 TL + 10 TL/km × d
+sefer          = 1                                   (miktar ≤ seçilen aracın kapasitesi)
+               = ⌈miktar / 12.000⌉                   (miktar > 12.000 kg, kamyon)
+taşımaMaliyeti = sefer × (seferÜcreti + araçKm × d)
 ```
 
-**Neden ton-km değil araç bazlı?** Küçük partiler (10-500 kg) tek bir hafif ticari araçla taşınır; araç
-yarı boş da gitse yakıt ve şoför maliyeti aynıdır. Ton-km modeli küçük miktarlarda taşımayı neredeyse
-bedava gösterir ve "taşıma maliyeti > atık değeri" riskini (PDR §2) hiç ortaya çıkarmaz.
+**Neden ton-km değil araç bazlı?** Küçük partiler tek bir araçla taşınır; araç yarı boş da gitse yakıt
+ve şoför maliyeti aynıdır. Ton-km modeli küçük miktarlarda taşımayı neredeyse bedava gösterir ve
+"taşıma maliyeti > atık değeri" riskini (PDR §2) hiç ortaya çıkarmaz. Kapasite ise büyük partilerde
+"tek panelvan her şeyi taşır" gerçek dışılığını giderir.
 
-- **Sabit sefer ücreti (50 TL):** araç çağırma, yükleme/boşaltma, şoför zamanı. Mesafeden bağımsız
-  olduğu için küçük partilerde belirleyicidir.
-- **Araç-km (10 TL/km):** hafif ticari araç yakıt + aşınma ≈ 5 TL/km, **dönüş yolu dahil** ×2.
-  Tek yön mesafe ile çarpılır.
+- **Sabit sefer ücreti:** araç çağırma, yükleme/boşaltma, şoför zamanı. Mesafeden bağımsız olduğu için
+  küçük partilerde belirleyicidir.
+- **Araç-km:** yakıt + aşınma, **dönüş yolu dahil** (tek yön değerin ×2'si). Tek yön mesafe ile çarpılır.
+- 1.000 kg'a kadar her şey hafif ticari araçla hesaplanır; bu belgedeki 100 kg / 15 kg örnekleri bu yüzden
+  değişmedi.
+- Kartta "Araç" satırı seçilen aracı (ve 1'den fazlaysa sefer sayısını) gösterir.
 
 ### 2.3 Malzeme değeri
 
@@ -79,10 +92,11 @@ Para değerleri tam TL'ye yuvarlanır.
 ### 2.5 CO₂ – araç-km bazlı
 
 ```
-co2Kg = d × EMISSION_KG_PER_VEHICLE_KM = d × 0,5 kg/km
+co2Kg = sefer × d × aracınEmisyonu        (hafif ticari: d × 0,5 kg/km)
 ```
 
-Hafif ticari dizel araç ≈ 0,25 kg CO₂/km, dönüş dahil ×2. Taşınan miktardan bağımsızdır (araç bazlı).
+Yaklaşık tek yön değerler (demo varsayımı): panelvan ≈0,25, kamyonet ≈0,4, kamyon ≈0,8 kg CO₂/km;
+dönüş dahil ×2. Taşınan kilogramla doğrudan orantılı değildir; seçilen araca ve sefer sayısına bağlıdır.
 Kartta "Taşıma CO₂" olarak gösterilir; sıralamada eşitlik bozucudur.
 
 ### 2.5b Net iklim etkisi (tahmini)
@@ -126,7 +140,8 @@ skor = round( netKâr / enİyiNetKâr × 100 × tazelikKatsayısı )      tazeli
 
 ## 3. Başabaş noktası (en kullanışlı sezgi)
 
-Net kârın sıfır olduğu yerden:
+Net kârın sıfır olduğu yerden (hafif ticari araç, miktar ≤ 1.000 kg; daha büyük araçta 50 ve 10 yerine
+o aracın sefer ücreti ve araç-km değeri, çoklu seferde ayrıca × sefer):
 
 ```
 Bir alıcının kârlı olabileceği en uzak mesafe:   d_maks = (miktar × fiyat × kalite/100 − 50) / 10
@@ -212,9 +227,7 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 |-------|------:|--------|
 | `MAX_RADIUS_KM` | 50 | Eşleşmeye izin verilen en büyük mesafe (harita dairesi de buradan) |
 | `NEARBY_CONTEXT_KM` | 100 | Elenme özetine girecek en uzak alıcı |
-| `TRIP_BASE_FEE_TRY` | 50 | Sabit sefer ücreti (TL) |
-| `COST_PER_VEHICLE_KM_TRY` | 10 | Araç-km maliyeti, dönüş dahil (TL/km) |
-| `EMISSION_KG_PER_VEHICLE_KM` | 0,5 | Araç-km emisyonu, dönüş dahil (kg CO₂/km) |
+| `VEHICLE_CLASSES` | 3 sınıf | Kapasite, sefer ücreti, araç-km maliyeti ve emisyon (bkz. §2.2 tablosu) |
 | `AVOIDED_LANDFILL_KG_CO2E_PER_KG` | ≈0,595 | Çöplükten çevrilen kg başına önlenen emisyon (EPA WARM v15) |
 | `HANDLING_DAYS` | 1 | Toplama + işleme süresi (gün) |
 | `AVG_SPEED_KMH` × `DRIVING_HOURS_PER_DAY` | 40 × 8 | Günlük yol kapasitesi = 320 km |
@@ -229,6 +242,7 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 | Karar | Gerekçe |
 |-------|---------|
 | Araç bazlı taşıma (ton-km yerine) | Küçük partilerde gerçek maliyet araçtır; PDR'daki "taşıma > atık değeri" riskini görünür kılar |
+| Araç sınıfı + kapasite (Faz B) | En küçük uygun araç seçilir, 12 t üstü çoklu kamyon seferi; büyük partilerde tek panelvan varsayımı kalkar. 1 t'a kadar sonuçlar değişmez |
 | Sabit sefer ücreti | 10-20 kg'lık ilanlarda uzak alıcıların doğal olarak zarara düşmesi |
 | Kuş uçuşu (Haversine) | Ek servis/anahtar gerektirmez; demo için yeterli |
 | Organik değilse hiç eşleştirme yok | AI "tarımsal yan ürün değil" dediyse alıcı aramak anlamsız |
@@ -241,7 +255,8 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 ## 8. Bilinen sınırlar
 
 - Mesafe kuş uçuşudur; gerçek yol mesafesi ve trafik dikkate alınmaz.
-- Araç kapasitesi yoktur: çok büyük partilerde (tonlarca) tek araç varsayımı gerçekçi değildir.
+- Araç seçimi yalnızca kapasiteye bakar; maliyet açısından daha ucuz kombinasyon (ör. iki panelvan yerine
+  bir kamyonet) aranmaz. Araç değerleri yaklaşık demo varsayımıdır.
 - Net iklim etkisi ABD ortalamasına dayalı tek bir katsayı kullanır (EPA WARM); ürün türüne, yerel çöplük
   koşullarına ve alıcının işleme emisyonuna göre değişmez.
 - Fiyatlar ve maliyetler sabittir; mevsim, yakıt fiyatı veya alıcı kapasitesi yoktur.

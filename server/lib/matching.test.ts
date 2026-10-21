@@ -7,6 +7,7 @@ import {
   haversineKm,
   MAX_RADIUS_KM,
   matchBuyers,
+  selectVehicle,
 } from "./matching.js";
 import { INDUSTRIES, type Buyer, type QualityResult } from "./schema.js";
 
@@ -141,6 +142,45 @@ test("net iklim etkisi = önlenen çöplük emisyonu − taşıma CO₂", () => 
   assert.equal(best.co2Kg, 6.5);
   assert.equal(best.netImpactCo2eKg, 53);
   assert.ok(Math.abs(AVOIDED_LANDFILL_KG_CO2E_PER_KG - 0.595) < 0.001);
+});
+
+test("araç seçimi: en küçük uygun araç, kapasite aşılırsa çoklu sefer", () => {
+  const pick = (kg: number) => {
+    const { vehicle, trips } = selectVehicle(kg);
+    return `${vehicle.type}×${trips}`;
+  };
+  assert.equal(pick(15), "hafif_ticari×1");
+  assert.equal(pick(1_000), "hafif_ticari×1");
+  assert.equal(pick(1_001), "kamyonet×1");
+  assert.equal(pick(12_000), "kamyon×1");
+  assert.equal(pick(12_001), "kamyon×2");
+  assert.equal(pick(30_000), "kamyon×3");
+});
+
+test("500 kg: hafif ticari, 1 sefer; maliyet ve CO₂ panelvan değerleriyle", () => {
+  const [best] = matchBuyers({ quantityKg: 500, ...CITY_POINTS.ist }, goodQuality, BUYERS);
+  assert.equal(best.buyer.id, "ist-1");
+  assert.deepEqual(best.vehicle, { type: "hafif_ticari", label: "Hafif ticari (panelvan)", trips: 1 });
+  assert.equal(best.transportCostTRY, 179); // 50 + 10 × 12,9
+  assert.equal(best.co2Kg, 6.5); // 0,5 × 12,9
+});
+
+test("5.000 kg: kamyon, 1 sefer; maliyet ve CO₂ kamyon değerleriyle", () => {
+  const { matches, eliminated } = evaluateBuyers({ quantityKg: 5_000, ...CITY_POINTS.ist }, goodQuality, BUYERS);
+  const best = matches[0];
+  assert.deepEqual(best.vehicle, { type: "kamyon", label: "Kamyon", trips: 1 });
+  assert.equal(best.transportCostTRY, 735); // 400 + 26 × 12,9 = 735,4
+  assert.equal(best.co2Kg, 20.6); // 1,6 × 12,9 = 20,64
+  // Büyük partide zarar eden alıcı (Dilovası, 2 TL/kg) kâra geçer: 5.000 × 2 × 0,9 = 9.000 > 400 + 26 × 43,3.
+  assert.ok(matches.some((m) => m.buyer.id === "ist-3"));
+  assert.deepEqual(eliminated, { distance: 1, industry: 0, shelfLife: 0, loss: 0 });
+});
+
+test("kapasite aşımı: 30.000 kg → 3 kamyon seferi, maliyet ve CO₂ ×3", () => {
+  const [best] = matchBuyers({ quantityKg: 30_000, ...CITY_POINTS.ist }, goodQuality, BUYERS);
+  assert.equal(best.vehicle.trips, 3);
+  assert.equal(best.transportCostTRY, 2206); // 3 × (400 + 26 × 12,9) = 2.206,2
+  assert.equal(best.co2Kg, 61.9); // 3 × 1,6 × 12,9 = 61,92
 });
 
 test("matchBuyers, evaluateBuyers'ın eşleşmeleriyle aynıdır", () => {

@@ -1,4 +1,11 @@
-import type { Buyer, EliminationSummary, Match, MatchListing, QualityResult } from "./schema.js";
+import type {
+  Buyer,
+  EliminationSummary,
+  Match,
+  MatchListing,
+  QualityResult,
+  VehicleType,
+} from "./schema.js";
 
 // ===== DEMO VARSAYIMLARI =====
 // Gerçek piyasa verisi değildir; prototipte davranışı göstermek için seçilmiş değerlerdir.
@@ -7,23 +14,20 @@ import type { Buyer, EliminationSummary, Match, MatchListing, QualityResult } fr
 export const MAX_RADIUS_KM = 50;
 
 /**
- * Sabit sefer ücreti (TL): araç çağırma, yükleme/boşaltma, şoför zamanı.
- * Mesafeden bağımsızdır; bu yüzden 10-20 kg gibi küçük partilerde yalnızca çok yakın
- * alıcılar kârlı kalır, uzaklar doğal olarak zarara düşer.
+ * Araç sınıfları (küçükten büyüğe). Miktarı taşıyabilen en küçük araç seçilir; en büyük aracın
+ * kapasitesi aşılırsa çoklu sefer yapılır (maliyet ve CO₂ sefer sayısıyla çarpılır).
+ * - capacityKg:     tek seferde taşınabilecek yük.
+ * - baseFeeTRY:     sabit sefer ücreti (araç çağırma, yükleme/boşaltma, şoför zamanı); mesafeden
+ *                   bağımsız olduğu için 10-20 kg'lık partilerde uzak alıcılar doğal olarak zarara düşer.
+ * - costPerKmTRY:   araç-km maliyeti (yakıt + aşınma), dönüş yolu dahil; tek yön mesafe ile çarpılır.
+ * - emissionKgPerKm: kg CO₂ / km, dönüş yolu dahil (yaklaşık: panelvan ≈0,25, kamyonet ≈0,4,
+ *                   kamyon ≈0,8 kg/km tek yön × 2); taşınan miktardan bağımsız (araç bazlı).
  */
-export const TRIP_BASE_FEE_TRY = 50;
-
-/**
- * Araç-km maliyeti (TL / km): hafif ticari araç, yakıt + aşınma.
- * Dönüş yolu dahildir (≈5 TL/km × 2); tek yön mesafe ile çarpılır.
- */
-export const COST_PER_VEHICLE_KM_TRY = 10;
-
-/**
- * Emisyon faktörü (kg CO₂ / km): hafif ticari dizel araç ≈0,25 kg/km, dönüş yolu dahil × 2.
- * Tek yön mesafe ile çarpılır. Taşınan miktardan bağımsızdır (araç bazlı).
- */
-export const EMISSION_KG_PER_VEHICLE_KM = 0.5;
+export const VEHICLE_CLASSES: readonly VehicleClass[] = [
+  { type: "hafif_ticari", label: "Hafif ticari (panelvan)", capacityKg: 1_000, baseFeeTRY: 50, costPerKmTRY: 10, emissionKgPerKm: 0.5 },
+  { type: "kamyonet", label: "Kamyonet", capacityKg: 3_500, baseFeeTRY: 150, costPerKmTRY: 16, emissionKgPerKm: 0.8 },
+  { type: "kamyon", label: "Kamyon", capacityKg: 12_000, baseFeeTRY: 400, costPerKmTRY: 26, emissionKgPerKm: 1.6 },
+];
 
 /** Toplama + işleme için gereken asgari süre (gün). Raf ömrü bunun altındaysa eşleşme olmaz. */
 export const HANDLING_DAYS = 1;
@@ -71,6 +75,23 @@ const round = (value: number, digits: number) => {
   return Math.round(value * factor) / factor;
 };
 
+type VehicleClass = {
+  type: VehicleType;
+  label: string;
+  capacityKg: number;
+  baseFeeTRY: number;
+  costPerKmTRY: number;
+  emissionKgPerKm: number;
+};
+
+/** Miktarı taşıyabilen en küçük araç; hiçbiri tek seferde taşıyamıyorsa en büyük araçla çoklu sefer. */
+export function selectVehicle(quantityKg: number): { vehicle: VehicleClass; trips: number } {
+  const fitting = VEHICLE_CLASSES.find((vehicle) => quantityKg <= vehicle.capacityKg);
+  if (fitting) return { vehicle: fitting, trips: 1 };
+  const largest = VEHICLE_CLASSES[VEHICLE_CLASSES.length - 1];
+  return { vehicle: largest, trips: Math.ceil(quantityKg / largest.capacityKg) };
+}
+
 /**
  * Saf fonksiyon: aynı girdiye her zaman aynı çıktı, yan etki yok.
  * Eşleşmeleri ve elenen alıcıların sebebe göre sayısını döner.
@@ -86,6 +107,8 @@ export function evaluateBuyers(
   if (!quality.isOrganicByproduct) return { matches: [], eliminated };
 
   const candidates: Array<Omit<Match, "score"> & { freshness: number }> = [];
+  // Araç yalnızca miktara bağlı: tüm alıcılar için aynı.
+  const { vehicle, trips } = selectVehicle(listing.quantityKg);
 
   for (const buyer of buyers) {
     const distanceKm = round(haversineKm(listing.lat, listing.lng, buyer.lat, buyer.lng), 1);
@@ -107,7 +130,7 @@ export function evaluateBuyers(
     }
     const freshness = quality.estimatedShelfLifeDays < requiredDays + SHELF_LIFE_BUFFER_DAYS ? 0.5 : 1;
 
-    const transportCostTRY = round(TRIP_BASE_FEE_TRY + COST_PER_VEHICLE_KM_TRY * distanceKm, 0);
+    const transportCostTRY = round(trips * (vehicle.baseFeeTRY + vehicle.costPerKmTRY * distanceKm), 0);
     const materialValueTRY = round(
       listing.quantityKg * buyer.pricePerKg * (quality.qualityScore / 100),
       0
@@ -118,7 +141,7 @@ export function evaluateBuyers(
       continue;
     }
 
-    const co2Kg = round(distanceKm * EMISSION_KG_PER_VEHICLE_KM, 1);
+    const co2Kg = round(trips * distanceKm * vehicle.emissionKgPerKm, 1);
     // Net iklim etkisi = önlenen çöplük emisyonu − taşıma CO₂ (pozitif = tasarruf).
     const netImpactCo2eKg = round(listing.quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg, 1);
     candidates.push({
@@ -129,6 +152,7 @@ export function evaluateBuyers(
       netProfitTRY,
       co2Kg,
       netImpactCo2eKg,
+      vehicle: { type: vehicle.type, label: vehicle.label, trips },
       freshness,
     });
   }

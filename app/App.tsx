@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import UploadForm, { EMPTY_DRAFT, type FormDraft } from "./src/components/UploadForm";
 import LoadingView from "./src/components/LoadingView";
 import ResultView from "./src/components/ResultView";
@@ -82,27 +83,43 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container}>
-      {step === "form" && (
-        <UploadForm draft={draft} onDraftChange={handleDraftChange} onSubmit={runAnalysis} />
-      )}
-      {step === "loading" && (
-        <LoadingView error={error} onRetry={handleRetry} onBack={handleBackToForm} />
-      )}
-      {step === "result" && result && lastListing && (
-        <ResultView
-          result={result}
-          listing={lastListing}
-          matchState={matchState}
-          onRetryMatch={handleRetryMatch}
-          onReset={handleReset}
-        />
-      )}
+    <SafeAreaProvider>
+      {/* Güvenli alan: kaydırılan içerik durum çubuğunun / alt çubuğun altına girmez. */}
+      <SafeAreaView style={styles.page} edges={["top", "bottom", "left", "right"]}>
+        {/* Geniş ekranda (web) ortalanmış en fazla 480 px sütun; dar ekranda tam genişlik. */}
+        <View style={styles.column}>
+          {step === "form" && (
+            <UploadForm draft={draft} onDraftChange={handleDraftChange} onSubmit={runAnalysis} />
+          )}
+          {step === "loading" && (
+            <LoadingView error={error} onRetry={handleRetry} onBack={handleBackToForm} />
+          )}
+          {step === "result" && result && lastListing && (
+            <ResultView
+              result={result}
+              listing={lastListing}
+              matchState={matchState}
+              onRetryMatch={handleRetryMatch}
+              onReset={handleReset}
+            />
+          )}
+        </View>
+      </SafeAreaView>
       <StatusBar style="dark" />
-    </View>
+    </SafeAreaProvider>
   );
 }
 
+const MAX_COLUMN_WIDTH = 480;
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  // Sütun dışı (yalnız geniş ekranda görünür): nötr gri.
+  page: { flex: 1, backgroundColor: Platform.OS === "web" ? "#eef0f2" : "#fff" },
+  column: {
+    flex: 1,
+    width: "100%",
+    maxWidth: MAX_COLUMN_WIDTH,
+    alignSelf: "center",
+    backgroundColor: "#fff",
+  },
 });

@@ -64,6 +64,8 @@ export type Buyer = {
   isFictional: true;
 };
 
+export type VehicleType = "hafif_ticari" | "kamyonet" | "kamyon";
+
 export type Match = {
   buyer: Buyer;
   distanceKm: number;
@@ -72,6 +74,7 @@ export type Match = {
   netProfitTRY: number;
   co2Kg: number;
   netImpactCo2eKg: number; // tahmini: önlenen çöplük emisyonu − taşıma CO₂ (pozitif = tasarruf)
+  vehicle: { type: VehicleType; label: string; trips: number }; // miktara göre seçilen araç
   score: number;
 };
 

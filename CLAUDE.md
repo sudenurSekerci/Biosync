@@ -48,7 +48,8 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 /app            (Expo)
   App.tsx
   vercel.json       (web derlemesi: expo export -p web → dist)
-  src/components/   (UploadForm, LoadingView, ResultView, MatchCard, MatchMap)
+  src/components/   (UploadForm, LoadingView, ResultView, MatchCard, MatchMap, SessionImpactBar)
+  src/industryInfo.ts  (endüstri etiketi bilgisi: atık kategorisi × sektör, statik sözlük)
   src/services/api.ts
   src/types.ts
 /server

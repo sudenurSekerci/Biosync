@@ -180,8 +180,14 @@ GitHub deposu Vercel'e **iki ayrı proje** olarak bağlanır. `main`'e her push 
 2. **Konum**: "Konumumu al" veya "Konumu elle gir" → aşağıdaki test koordinatlarından biri.
 3. **Analiz Et** → "AI Ürün Kalitesini Analiz Ediyor..." (birkaç saniye).
 4. **Sonuç**: Kalite Güven Puanı, bozulma durumu, raf ömrü, en uygun 1-3 endüstri ve Türkçe değerlendirme.
-5. **Eşleşmeler**: "Eşleşme Bulundu" kartları (mesafe, taşıma maliyeti, net kâr, CO₂, çöpe gitmesi önlenen kg),
-   tahmini net iklim etkisi, elenen alıcı özeti ve harita (50 km dairesi + alıcılar).
+   Bir endüstri etiketine dokunun → bu atıktan o sektörde ne üretilebileceği (ör. narenciye kabuğu → kozmetik: uçucu yağ).
+5. **Eşleşmeler**: tahmini net iklim etkisi, harita (50 km dairesi + alıcılar) ve kompakt alıcı kartları
+   (mesafe, araç, net kâr); altında elenen alıcı özeti.
+6. **Detay**: Karta dokunun → maliyet kırılımı, CO₂, önlenen atık; alıcı haritada vurgulanır ve ilandan alıcıya
+   çizgi çekilir. Haritada bir noktaya dokunmak da ilgili kartı açar.
+7. **Teklif (demo)**: "Teklif gönder" → Onayla → "Talebiniz … firmasına iletildi" → birkaç saniye sonra
+   "Kabul edildi (demo)". Üstte oturum özeti belirir (kabul edilen teklif, kg atık, tahmini CO₂e). İlan başına
+   tek teklif; özet kalıcı değildir.
 
 Göstermeye değer senaryolar:
 

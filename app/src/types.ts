@@ -15,6 +15,12 @@ export type {
 
 export type Step = "form" | "loading" | "result";
 
+// Teklif simülasyonu (demo): ilan başına tek teklif; "sent" → birkaç sn sonra "accepted".
+export type Offer = { buyerId: string; buyerName: string; status: "sent" | "accepted" };
+
+// Oturum etki sayacı: kabul edilen tekliflerin toplamı. Kalıcı değildir (uygulama kapanınca sıfırlanır).
+export type SessionImpact = { acceptedOffers: number; wasteKg: number; netCo2eKg: number };
+
 // Sonuç ekranındaki eşleştirme bölümünün durumu. "skipped": organik değil, eşleştirme çağrılmadı.
 export type MatchState =
   | { status: "skipped" }

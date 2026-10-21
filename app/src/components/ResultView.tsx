@@ -1,11 +1,16 @@
+import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MatchCard from "./MatchCard";
 import MatchMap from "./MatchMap";
+import { industryInfo } from "../industryInfo";
 import {
   INDUSTRY_LABELS,
   type EliminationSummary,
+  type Industry,
   type Listing,
+  type Match,
   type MatchState,
+  type Offer,
   type QualityResult,
   type SpoilageStatus,
 } from "../types";
@@ -14,8 +19,19 @@ type Props = {
   result: QualityResult;
   listing: Listing;
   matchState: MatchState;
+  offer: Offer | null;
+  onSendOffer: (match: Match) => void;
   onRetryMatch: () => void;
   onReset: () => void;
+};
+
+// Seçili alıcı (kart açık + haritada vurgulu) ve kart konumları (işaretçiye dokununca kaydırma için).
+type Selection = {
+  selectedBuyerId: string | null;
+  onSelectFromCard: (buyerId: string) => void;
+  onSelectFromMap: (buyerId: string) => void;
+  onCardsLayout: (y: number) => void;
+  onCardLayout: (buyerId: string, y: number) => void;
 };
 
 const SPOILAGE: Record<SpoilageStatus, { label: string; color: string }> = {
@@ -56,8 +72,13 @@ function scoreColor(score: number): string {
 function MatchSection({
   listing,
   matchState,
+  offer,
+  onSendOffer,
   onRetryMatch,
-}: Pick<Props, "listing" | "matchState" | "onRetryMatch">) {
+  selection,
+}: Pick<Props, "listing" | "matchState" | "offer" | "onSendOffer" | "onRetryMatch"> & {
+  selection: Selection;
+}) {
   switch (matchState.status) {
     case "skipped":
       return (
@@ -99,14 +120,36 @@ function MatchSection({
                   taşıma CO₂
                 </Text>
               </View>
-              {matchState.matches.map((match, index) => (
-                <MatchCard
-                  key={match.buyer.id}
-                  match={match}
-                  quantityKg={listing.quantityKg}
-                  isBest={index === 0}
-                />
-              ))}
+              <MatchMap
+                lat={listing.lat}
+                lng={listing.lng}
+                radiusKm={matchState.radiusKm}
+                matches={matchState.matches}
+                selectedBuyerId={selection.selectedBuyerId}
+                onSelectBuyer={selection.onSelectFromMap}
+              />
+              <Text style={styles.muted}>Karta dokunun: detay açılır ve alıcı haritada vurgulanır.</Text>
+              <View
+                style={styles.cards}
+                onLayout={(event) => selection.onCardsLayout(event.nativeEvent.layout.y)}
+              >
+                {matchState.matches.map((match, index) => (
+                  <View
+                    key={match.buyer.id}
+                    onLayout={(event) => selection.onCardLayout(match.buyer.id, event.nativeEvent.layout.y)}
+                  >
+                    <MatchCard
+                      match={match}
+                      quantityKg={listing.quantityKg}
+                      isBest={index === 0}
+                      expanded={selection.selectedBuyerId === match.buyer.id}
+                      onPress={() => selection.onSelectFromCard(match.buyer.id)}
+                      offer={offer}
+                      onSendOffer={onSendOffer}
+                    />
+                  </View>
+                ))}
+              </View>
             </>
           ) : (
             <View style={styles.empty}>
@@ -117,24 +160,65 @@ function MatchSection({
               </Text>
             </View>
           )}
+          {matchState.matches.length === 0 && (
+            <MatchMap
+              lat={listing.lat}
+              lng={listing.lng}
+              radiusKm={matchState.radiusKm}
+              matches={[]}
+              selectedBuyerId={null}
+              onSelectBuyer={selection.onSelectFromMap}
+            />
+          )}
           {eliminatedText && <Text style={styles.eliminated}>{eliminatedText}</Text>}
-          <MatchMap
-            lat={listing.lat}
-            lng={listing.lng}
-            radiusKm={matchState.radiusKm}
-            matches={matchState.matches}
-          />
         </>
       );
     }
   }
 }
 
-export default function ResultView({ result, listing, matchState, onRetryMatch, onReset }: Props) {
+export default function ResultView({
+  result,
+  listing,
+  matchState,
+  offer,
+  onSendOffer,
+  onRetryMatch,
+  onReset,
+}: Props) {
   const spoilage = SPOILAGE[result.spoilageStatus];
+  const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
+  const [selectedIndustry, setSelectedIndustry] = useState<Industry | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const cardsY = useRef(0);
+  const cardY = useRef<Record<string, number>>({});
+
+  const selection: Selection = {
+    selectedBuyerId,
+    // Karta dokununca aç/kapat; harita vurgusu seçimden gelir.
+    onSelectFromCard: (buyerId) => setSelectedBuyerId((current) => (current === buyerId ? null : buyerId)),
+    // İşaretçiye dokununca kartı aç ve ona kaydır (yerleşim güncellendikten sonra).
+    onSelectFromMap: (buyerId) => {
+      setSelectedBuyerId(buyerId);
+      setTimeout(() => {
+        const y = cardsY.current + (cardY.current[buyerId] ?? 0);
+        scrollRef.current?.scrollTo({ y: Math.max(y - 12, 0), animated: true });
+      }, 80);
+    },
+    onCardsLayout: (y) => {
+      cardsY.current = y;
+    },
+    onCardLayout: (buyerId, y) => {
+      cardY.current[buyerId] = y;
+    },
+  };
+
+  const info = selectedIndustry
+    ? industryInfo(selectedIndustry, result.productType, listing.wasteType)
+    : null;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
       <Text style={styles.product}>{result.productType}</Text>
 
       <View style={styles.scoreBox}>
@@ -163,13 +247,36 @@ export default function ResultView({ result, listing, matchState, onRetryMatch, 
 
       <Text style={styles.section}>Uygun endüstriler</Text>
       {result.suitableIndustries.length > 0 ? (
-        <View style={styles.chips}>
-          {result.suitableIndustries.map((industry) => (
-            <View key={industry} style={styles.chip}>
-              <Text style={styles.chipText}>{INDUSTRY_LABELS[industry]}</Text>
+        <>
+          <View style={styles.chips}>
+            {result.suitableIndustries.map((industry) => {
+              const active = selectedIndustry === industry;
+              return (
+                <Pressable
+                  key={industry}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setSelectedIndustry(active ? null : industry)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: active }}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {INDUSTRY_LABELS[industry]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {info && selectedIndustry ? (
+            <View style={styles.industryInfo}>
+              <Text style={styles.industryInfoTitle}>
+                {INDUSTRY_LABELS[selectedIndustry]} · {info.wasteLabel} için örnek kullanım
+              </Text>
+              <Text style={styles.industryInfoText}>{info.text}</Text>
             </View>
-          ))}
-        </View>
+          ) : (
+            <Text style={styles.muted}>Bir endüstriye dokunun: bu atıktan ne üretilebileceği görünür.</Text>
+          )}
+        </>
       ) : (
         <Text style={styles.muted}>Uygun endüstri bulunamadı.</Text>
       )}
@@ -178,7 +285,14 @@ export default function ResultView({ result, listing, matchState, onRetryMatch, 
       <Text style={styles.summary}>{result.summary}</Text>
 
       <Text style={styles.section}>Alıcı eşleşmeleri</Text>
-      <MatchSection listing={listing} matchState={matchState} onRetryMatch={onRetryMatch} />
+      <MatchSection
+        listing={listing}
+        matchState={matchState}
+        offer={offer}
+        onSendOffer={onSendOffer}
+        onRetryMatch={onRetryMatch}
+        selection={selection}
+      />
 
       <Pressable style={styles.button} onPress={onReset}>
         <Text style={styles.buttonText}>Yeni ilan</Text>
@@ -214,6 +328,12 @@ const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { backgroundColor: "#e8f5e9", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
   chipText: { color: "#2e7d32", fontSize: 14, fontWeight: "600" },
+  chipActive: { backgroundColor: "#2e7d32" },
+  chipTextActive: { color: "#fff" },
+  industryInfo: { borderLeftWidth: 3, borderLeftColor: "#2e7d32", paddingLeft: 10, paddingVertical: 4, gap: 2 },
+  industryInfoTitle: { fontSize: 13, fontWeight: "700", color: "#1b3a1b" },
+  industryInfoText: { fontSize: 14, color: "#333", lineHeight: 20 },
+  cards: { gap: 8 },
   summary: { fontSize: 15, color: "#333", lineHeight: 22 },
   muted: { fontSize: 13, color: "#777" },
   matchFound: { fontSize: 15, fontWeight: "700", color: "#2e7d32" },

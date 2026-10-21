@@ -5,8 +5,20 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import UploadForm, { EMPTY_DRAFT, type FormDraft } from "./src/components/UploadForm";
 import LoadingView from "./src/components/LoadingView";
 import ResultView from "./src/components/ResultView";
+import SessionImpactBar, { EMPTY_SESSION_IMPACT } from "./src/components/SessionImpactBar";
 import { analyzeListing, findMatches } from "./src/services/api";
-import type { Listing, MatchState, QualityResult, Step } from "./src/types";
+import type {
+  Listing,
+  Match,
+  MatchState,
+  Offer,
+  QualityResult,
+  SessionImpact,
+  Step,
+} from "./src/types";
+
+// Teklif simülasyonu: "iletildi" → bu süre sonra "kabul edildi (demo)".
+const OFFER_ACCEPT_DELAY_MS = 2500;
 
 export default function App() {
   const [step, setStep] = useState<Step>("form");
@@ -18,6 +30,32 @@ export default function App() {
   const [draft, setDraft] = useState<FormDraft>(EMPTY_DRAFT);
   // Geç gelen eşleştirme yanıtı yeni bir ilanın ekranını ezmesin.
   const matchRequestId = useRef(0);
+  // Teklif (ilan başına tek) ve oturum etki sayacı (kalıcı değil; "Yeni ilan"da sıfırlanmaz).
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [sessionImpact, setSessionImpact] = useState<SessionImpact>(EMPTY_SESSION_IMPACT);
+  const offerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearOffer() {
+    if (offerTimer.current) clearTimeout(offerTimer.current);
+    offerTimer.current = null;
+    setOffer(null);
+  }
+
+  // Demo: teklif iletilir, birkaç saniye sonra kabul edilir ve oturum sayacına eklenir.
+  function handleSendOffer(match: Match) {
+    if (!lastListing || offer) return;
+    const quantityKg = lastListing.quantityKg;
+    setOffer({ buyerId: match.buyer.id, buyerName: match.buyer.name, status: "sent" });
+    offerTimer.current = setTimeout(() => {
+      offerTimer.current = null;
+      setOffer((current) => (current ? { ...current, status: "accepted" } : current));
+      setSessionImpact((total) => ({
+        acceptedOffers: total.acceptedOffers + 1,
+        wasteKg: total.wasteKg + quantityKg,
+        netCo2eKg: total.netCo2eKg + match.netImpactCo2eKg,
+      }));
+    }, OFFER_ACCEPT_DELAY_MS);
+  }
 
   async function runMatch(listing: Listing, quality: QualityResult) {
     const requestId = ++matchRequestId.current;
@@ -42,6 +80,7 @@ export default function App() {
   }
 
   async function runAnalysis(listing: Listing) {
+    clearOffer();
     setLastListing(listing);
     setError(null);
     setStep("loading");
@@ -70,6 +109,7 @@ export default function App() {
 
   function handleReset() {
     matchRequestId.current++;
+    clearOffer();
     setResult(null);
     setError(null);
     setLastListing(null);
@@ -88,6 +128,7 @@ export default function App() {
       <SafeAreaView style={styles.page} edges={["top", "bottom", "left", "right"]}>
         {/* Geniş ekranda (web) ortalanmış en fazla 480 px sütun; dar ekranda tam genişlik. */}
         <View style={styles.column}>
+          <SessionImpactBar impact={sessionImpact} />
           {step === "form" && (
             <UploadForm draft={draft} onDraftChange={handleDraftChange} onSubmit={runAnalysis} />
           )}
@@ -99,6 +140,8 @@ export default function App() {
               result={result}
               listing={lastListing}
               matchState={matchState}
+              offer={offer}
+              onSendOffer={handleSendOffer}
               onRetryMatch={handleRetryMatch}
               onReset={handleReset}
             />

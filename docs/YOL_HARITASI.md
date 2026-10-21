@@ -32,6 +32,7 @@ Faz 4 bitmediyse: etki satırı (kaynaklı katsayı, "tahmini") + README taslağ
 ## Faz B — Hata düzeltmeleri (→ ~13:30)
 1. SafeArea: kaydırınca içerik durum çubuğunun altına girmesin.
 2. Araç kapasitesi: miktara göre araç sınıfı (hafif ticari / kamyonet / kamyon), her birinin sefer ücreti, km maliyeti, emisyon faktörü; kapasite aşılırsa çoklu sefer. Kartta araç yazsın. Sabitler "demo varsayımı", ESLESTIRME_MANTIGI.md güncellenir. matchBuyers testine 500 kg / 5.000 kg senaryosu.
+3. Web'de geniş ekran: içerik ortada, en fazla ~480px genişlikte tek sütun; kenarlarda nötr arka plan. Mobil görünüm (Expo Go ve dar tarayıcı) değişmez.
 
 ## Faz C — Tıklanabilir sonuçlar ve teklif (→ ~15:30)
 1. Kompakt kart (alıcı, mesafe, net kâr, araç) → dokununca detay (maliyet kırılımı, CO₂, önlenen atık, "Teklif gönder").

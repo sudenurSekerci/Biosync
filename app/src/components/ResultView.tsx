@@ -39,6 +39,14 @@ function eliminationText(eliminated: EliminationSummary): string | null {
   return text ? `${text} elendi.` : null;
 }
 
+// Tahmini net iklim etkisi (en kârlı eşleşme). Katsayı ve kaynak: server/lib/matching.ts.
+function impactText(netImpactCo2eKg: number): string {
+  const amount = Math.abs(netImpactCo2eKg).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
+  return netImpactCo2eKg >= 0
+    ? `Tahmini net iklim etkisi: ≈${amount} kg CO₂e tasarruf`
+    : `Tahmini net iklim etkisi: ≈${amount} kg CO₂e ek emisyon`;
+}
+
 function scoreColor(score: number): string {
   if (score >= 70) return "#2e7d32";
   if (score >= 40) return "#ef6c00";
@@ -82,6 +90,15 @@ function MatchSection({
               <Text style={styles.matchFound}>
                 Eşleşme Bulundu: {matchState.matches.length} alıcı ({matchState.radiusKm} km içinde)
               </Text>
+              <View style={styles.impact}>
+                <Text style={styles.impactText}>
+                  {impactText(matchState.matches[0].netImpactCo2eKg)}
+                </Text>
+                <Text style={styles.impactNote}>
+                  En kârlı eşleşmeye göre: çöplüğe gitmesi önlenen emisyon (EPA WARM tahmini) −
+                  taşıma CO₂
+                </Text>
+              </View>
               {matchState.matches.map((match, index) => (
                 <MatchCard
                   key={match.buyer.id}
@@ -213,6 +230,9 @@ const styles = StyleSheet.create({
   retryText: { color: "#fff", fontWeight: "700" },
   empty: { backgroundColor: "#fff4e5", borderRadius: 8, padding: 12, gap: 4 },
   eliminated: { fontSize: 13, color: "#777", fontStyle: "italic" },
+  impact: { backgroundColor: "#e8f5e9", borderRadius: 8, padding: 10, gap: 2 },
+  impactText: { fontSize: 15, fontWeight: "700", color: "#1b5e20" },
+  impactNote: { fontSize: 12, color: "#555" },
   emptyTitle: { color: "#8a4b00", fontSize: 15, fontWeight: "700" },
   button: {
     backgroundColor: "#2e7d32",

@@ -1,8 +1,8 @@
 # BioSync – Eşleştirme Mantığı (Faz 3)
 
 Bu belge, bir ilanın hangi alıcıyla neden eşleştiğini (ya da neden eşleşmediğini) açıklar.
-Kodun karşılığı: [server/lib/matching.ts](server/lib/matching.ts), alıcı verisi:
-[server/data/buyers.ts](server/data/buyers.ts), testler: [server/lib/matching.test.ts](server/lib/matching.test.ts) (`cd server && npm test`).
+Kodun karşılığı: [server/lib/matching.ts](../server/lib/matching.ts), alıcı verisi:
+[server/data/buyers.ts](../server/data/buyers.ts), testler: [server/lib/matching.test.ts](../server/lib/matching.test.ts) (`cd server && npm test`).
 
 > Buradaki tüm sayılar **demo varsayımıdır**; gerçek piyasa verisi değildir. Sabitler değişirse
 > bu belgedeki örnekler de güncellenmelidir (testler sayıların tutarlılığını kontrol eder).
@@ -84,6 +84,22 @@ co2Kg = d × EMISSION_KG_PER_VEHICLE_KM = d × 0,5 kg/km
 
 Hafif ticari dizel araç ≈ 0,25 kg CO₂/km, dönüş dahil ×2. Taşınan miktardan bağımsızdır (araç bazlı).
 Kartta "Taşıma CO₂" olarak gösterilir; sıralamada eşitlik bozucudur.
+
+### 2.5b Net iklim etkisi (tahmini)
+
+```
+önlenenÇöplükEmisyonu = miktarKg × AVOIDED_LANDFILL_KG_CO2E_PER_KG      (≈ 0,595 kg CO₂e/kg)
+netİklimEtkisi        = önlenenÇöplükEmisyonu − co2Kg                     (pozitif = tasarruf)
+```
+
+- **Kaynak:** ABD EPA, *Modeling Food Donation Benefits in EPA's Waste Reduction Model* (WARM v15, Haziran 2019),
+  Tablo 1, düşük tahmin (yalnızca önlenen çöplüğe gönderme), "Fruits and Vegetables": **0,54 MTCO2E / kısa ton**.
+  [PDF (EPA arşivi)](https://19january2021snapshot.epa.gov/sites/static/files/2019-06/documents/warm_v15_food_donation_guidance.pdf)
+- **Dönüşüm:** 1 kısa ton = 0,90718474 metrik ton → 0,54 / 0,90718474 ≈ **0,595 kg CO₂e / kg**.
+- **Varsayımlar:** ABD ortalama çöplük gazı toplama koşulları (Türkiye'de farklı olabilir); alıcının işleme
+  emisyonu dahil değildir. Bu yüzden ekranda **"tahmini"** yazılır.
+- Her eşleşme için `netImpactCo2eKg` olarak hesaplanır; sonuç ekranında **en kârlı eşleşmenin** değeri gösterilir.
+- Örnek: İstanbul, 100 kg, İTÜ Arı Teknokent → 100 × 0,595 = 59,5 kg önlenir − 6,5 kg taşıma = **≈53 kg CO₂e tasarruf**.
 
 ### 2.6 Raf ömrü kuralı
 
@@ -199,6 +215,7 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 | `TRIP_BASE_FEE_TRY` | 50 | Sabit sefer ücreti (TL) |
 | `COST_PER_VEHICLE_KM_TRY` | 10 | Araç-km maliyeti, dönüş dahil (TL/km) |
 | `EMISSION_KG_PER_VEHICLE_KM` | 0,5 | Araç-km emisyonu, dönüş dahil (kg CO₂/km) |
+| `AVOIDED_LANDFILL_KG_CO2E_PER_KG` | ≈0,595 | Çöplükten çevrilen kg başına önlenen emisyon (EPA WARM v15) |
 | `HANDLING_DAYS` | 1 | Toplama + işleme süresi (gün) |
 | `AVG_SPEED_KMH` × `DRIVING_HOURS_PER_DAY` | 40 × 8 | Günlük yol kapasitesi = 320 km |
 | `SHELF_LIFE_BUFFER_DAYS` | 1 | Bu paydan az kalırsa skor yarıya iner |
@@ -225,6 +242,6 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 
 - Mesafe kuş uçuşudur; gerçek yol mesafesi ve trafik dikkate alınmaz.
 - Araç kapasitesi yoktur: çok büyük partilerde (tonlarca) tek araç varsayımı gerçekçi değildir.
-- CO₂ yalnızca taşıma emisyonudur; atığın çöpe gitmesinin önlediği emisyon hesaplanmaz
-  (kartta yalnızca "çöpe gitmesi önlenen: X kg" gösterilir).
+- Net iklim etkisi ABD ortalamasına dayalı tek bir katsayı kullanır (EPA WARM); ürün türüne, yerel çöplük
+  koşullarına ve alıcının işleme emisyonuna göre değişmez.
 - Fiyatlar ve maliyetler sabittir; mevsim, yakıt fiyatı veya alıcı kapasitesi yoktur.

@@ -71,6 +71,7 @@ export type Match = {
   materialValueTRY: number;
   netProfitTRY: number;
   co2Kg: number;
+  netImpactCo2eKg: number; // tahmini: önlenen çöplük emisyonu − taşıma CO₂ (pozitif = tasarruf)
   score: number;
 };
 

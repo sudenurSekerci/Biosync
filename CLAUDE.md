@@ -1,3 +1,5 @@
+Yol haritası: @docs/YOL_HARITASI.md
+
 # BioSync – Cursor Kuralları (PDR'a sadık)
 
 > Kaynak: BioSync PDR. Bu dosya ile PDR çelişirse PDR geçerlidir. PDR'da olmayan hiçbir özellik ekleme.
@@ -54,6 +56,11 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   lib/schema.ts     (zod şemaları + türetilmiş tipler; tek kaynak)
   data/buyers.ts
   .env.example
+/docs
+  ESLESTIRME_MANTIGI.md   (eşleştirme formülleri, sabitler, kararlar)
+  YOL_HARITASI.md         (teslim günü planı)
+  gorseller/              (README ekran görüntüleri)
+CLAUDE.md, README.md      (kökte kalır: CLAUDE.md yalnızca kökten otomatik yüklenir)
 ```
 Bunun dışında klasör/katman icat etme.
 
@@ -79,12 +86,14 @@ type Buyer = { id: string; name: string; industries: Industry[]; lat: number; ln
 
 type Match = {
   buyer: Buyer; distanceKm: number; transportCostTRY: number;
-  materialValueTRY: number; netProfitTRY: number; co2Kg: number; score: number;
+  materialValueTRY: number; netProfitTRY: number; co2Kg: number;
+  netImpactCo2eKg: number;   // tahmini: miktar × önlenen çöplük emisyonu − co2Kg (pozitif = tasarruf)
+  score: number;
 };
 ```
 
 ## 6. Eşleştirme Mantığı (PDR §2 ve §5)
-Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [ESLESTIRME_MANTIGI.md](ESLESTIRME_MANTIGI.md). Sabit veya formül değişirse o belge de güncellenir.
+Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLESTIRME_MANTIGI.md](docs/ESLESTIRME_MANTIGI.md). Sabit veya formül değişirse o belge de güncellenir.
 
 - Mesafe: **Haversine**, km.
 - `MAX_RADIUS_KM` sabiti (varsayılan 50) tek yerde tanımlı; bunu aşan alıcı **listeye girmez**.
@@ -92,6 +101,7 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [ESLESTIRME_
 - `materialValue = quantityKg * buyer.pricePerKg * (qualityScore/100)`
 - `netProfit = materialValue - transportCost`; `netProfit <= 0` ise eşleşme yok.
 - `co2Kg = distanceKm * EMISSION_KG_PER_VEHICLE_KM` (araç-km bazlı).
+- `netImpactCo2eKg = quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg`. Katsayı ≈0,595 kg CO₂e/kg, kaynak EPA WARM v15 (Tablo 1, "Fruits and Vegetables" 0,54 MTCO2E/kısa ton); kaynak `lib/matching.ts`'te yazılı. Ekranda **"tahmini"** ibaresiyle, en kârlı eşleşme için tek satır gösterilir. Kaynaksız katsayı eklenmez.
 - Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: sefer ücreti 50 TL, araç-km 10 TL, 0,5 kg CO₂/km (dönüş dahil). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır.
 - Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `score` yarıya iner.
 - `score` (0-100) yalnız gösterim: en iyi net kâra oran × raf ömrü katsayısı; sıralamayı değiştirmez.

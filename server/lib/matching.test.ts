@@ -1,7 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { BUYERS } from "../data/buyers";
-import { evaluateBuyers, haversineKm, MAX_RADIUS_KM, matchBuyers } from "./matching";
+import {
+  AVOIDED_LANDFILL_KG_CO2E_PER_KG,
+  evaluateBuyers,
+  haversineKm,
+  MAX_RADIUS_KM,
+  matchBuyers,
+} from "./matching";
 import { INDUSTRIES, type Buyer, type QualityResult } from "./schema";
 
 // Çalıştırma: npm test  (Node yerleşik test koşucusu, ek bağımlılık yok)
@@ -126,6 +132,15 @@ test("elenen özeti: sebeplere göre sayılar, yalnız yakın çevredeki (100 km
   // Organik değilse alıcı hiç değerlendirilmez.
   const notOrganic = evaluateBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, { ...goodQuality, isOrganicByproduct: false }, BUYERS);
   assert.deepEqual(notOrganic.eliminated, { distance: 0, industry: 0, shelfLife: 0, loss: 0 });
+});
+
+test("net iklim etkisi = önlenen çöplük emisyonu − taşıma CO₂", () => {
+  // 100 kg × 0,54/0,90718474 ≈ 59,52 kg CO₂e önlenir; İTÜ (12,9 km) taşıma 6,5 kg → net ≈ 53,0.
+  const [best] = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, goodQuality, BUYERS);
+  assert.equal(best.buyer.id, "ist-1");
+  assert.equal(best.co2Kg, 6.5);
+  assert.equal(best.netImpactCo2eKg, 53);
+  assert.ok(Math.abs(AVOIDED_LANDFILL_KG_CO2E_PER_KG - 0.595) < 0.001);
 });
 
 test("matchBuyers, evaluateBuyers'ın eşleşmeleriyle aynıdır", () => {

@@ -36,6 +36,17 @@ export const DRIVING_HOURS_PER_DAY = 8;
 export const SHELF_LIFE_BUFFER_DAYS = 1;
 
 /**
+ * Çöplükten çevrilen her kg organik yan ürün için önlenen emisyon (kg CO₂e / kg). TAHMİNİDİR.
+ * Kaynak: ABD EPA, "Modeling Food Donation Benefits in EPA's Waste Reduction Model" (WARM v15, Haziran 2019),
+ * Tablo 1, düşük tahmin (yalnızca önlenen çöplüğe gönderme): "Fruits and Vegetables" = 0,54 MTCO2E / kısa ton.
+ * https://19january2021snapshot.epa.gov/sites/static/files/2019-06/documents/warm_v15_food_donation_guidance.pdf
+ * Dönüşüm: 1 kısa ton = 0,90718474 metrik ton → 0,54 / 0,90718474 ≈ 0,595 kg CO₂e / kg.
+ * Varsayım: ABD ortalama çöplük gazı toplama koşulları; Türkiye'deki değer farklı olabilir.
+ * Alıcının işleme emisyonu hesaba katılmaz.
+ */
+export const AVOIDED_LANDFILL_KG_CO2E_PER_KG = 0.54 / 0.90718474;
+
+/**
  * Elenen alıcı özetine yalnızca bu mesafedeki alıcılar girer. Daha uzaktakiler
  * (örn. başka şehirdeki alıcılar) "bölge dışı" sayılır ve özette gösterilmez.
  */
@@ -108,7 +119,18 @@ export function evaluateBuyers(
     }
 
     const co2Kg = round(distanceKm * EMISSION_KG_PER_VEHICLE_KM, 1);
-    candidates.push({ buyer, distanceKm, transportCostTRY, materialValueTRY, netProfitTRY, co2Kg, freshness });
+    // Net iklim etkisi = önlenen çöplük emisyonu − taşıma CO₂ (pozitif = tasarruf).
+    const netImpactCo2eKg = round(listing.quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg, 1);
+    candidates.push({
+      buyer,
+      distanceKm,
+      transportCostTRY,
+      materialValueTRY,
+      netProfitTRY,
+      co2Kg,
+      netImpactCo2eKg,
+      freshness,
+    });
   }
 
   candidates.sort((a, b) => b.netProfitTRY - a.netProfitTRY || a.co2Kg - b.co2Kg);

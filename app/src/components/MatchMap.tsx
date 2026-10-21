@@ -7,7 +7,7 @@ type Props = { lat: number; lng: number; radiusKm: number; matches: Match[] };
 
 // Harita: WebView içinde Leaflet + OpenStreetMap görüntüleri (anahtarsız, Expo Go'da çalışır).
 // react-native-maps bırakıldı: Expo Go/Android'de Google Maps SDK haritayı hiç çizmedi
-// (onMapReady geldi, onMapLoaded ve tek bir görüntü isteği gelmedi). Ayrıntı: ESLESTIRME_MANTIGI.md §7.
+// (onMapReady geldi, onMapLoaded ve tek bir görüntü isteği gelmedi). Ayrıntı: docs/ESLESTIRME_MANTIGI.md §7.
 // Leaflet CDN'den sabit sürüm + SRI ile yüklenir; OSM kullanım koşulu gereği atıf görünür kalır.
 
 const COLORS = { user: "#1565c0", best: "#2e7d32", other: "#ef6c00" };

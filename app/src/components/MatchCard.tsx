@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  name: { flex: 1, fontSize: 17, fontWeight: "700", color: "#1b3a1b" },
+  name: { flex: 1, fontSize: 16, fontWeight: "700", color: "#1b3a1b" },
   toggle: { fontSize: 13, color: "#2e7d32", fontWeight: "600" },
   fictional: { fontSize: 12, fontStyle: "italic", color: "#8a4b00" },
   summaryRow: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 6 },

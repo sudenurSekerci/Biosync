@@ -133,7 +133,12 @@ export default function App() {
             <UploadForm draft={draft} onDraftChange={handleDraftChange} onSubmit={runAnalysis} />
           )}
           {step === "loading" && (
-            <LoadingView error={error} onRetry={handleRetry} onBack={handleBackToForm} />
+            <LoadingView
+              error={error}
+              onRetry={handleRetry}
+              onBack={handleBackToForm}
+              photoUri={draft.photo?.uri ?? null}
+            />
           )}
           {step === "result" && result && lastListing && (
             <ResultView

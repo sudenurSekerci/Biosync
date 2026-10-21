@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MatchCard from "./MatchCard";
 import MatchMap from "./MatchMap";
+import Wordmark from "./Wordmark";
 import { industryInfo } from "../industryInfo";
 import {
   INDUSTRY_LABELS,
@@ -63,10 +64,12 @@ function impactText(netImpactCo2eKg: number): string {
     : `Tahmini net iklim etkisi: ≈${amount} kg CO₂e ek emisyon`;
 }
 
-function scoreColor(score: number): string {
-  if (score >= 70) return "#2e7d32";
-  if (score >= 40) return "#ef6c00";
-  return "#c62828";
+// Puan ölçeği (renk + metin; bilgi yalnızca renge bağlı kalmasın).
+function scoreLevel(score: number): { color: string; label: string } {
+  if (score >= 80) return { color: "#1b5e20", label: "Yüksek" };
+  if (score >= 60) return { color: "#2e7d32", label: "İyi" };
+  if (score >= 40) return { color: "#ef6c00", label: "Orta" };
+  return { color: "#c62828", label: "Düşük" };
 }
 
 function MatchSection({
@@ -187,6 +190,7 @@ export default function ResultView({
   onReset,
 }: Props) {
   const spoilage = SPOILAGE[result.spoilageStatus];
+  const level = scoreLevel(result.qualityScore);
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState<Industry | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -219,13 +223,13 @@ export default function ResultView({
 
   return (
     <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
+      <Wordmark />
       <Text style={styles.product}>{result.productType}</Text>
 
       <View style={styles.scoreBox}>
-        <Text style={[styles.score, { color: scoreColor(result.qualityScore) }]}>
-          {Math.round(result.qualityScore)}
-        </Text>
+        <Text style={[styles.score, { color: level.color }]}>{Math.round(result.qualityScore)}</Text>
         <Text style={styles.scoreLabel}>Kalite Güven Puanı / 100</Text>
+        <Text style={[styles.scoreLevel, { color: level.color }]}>{level.label}</Text>
       </View>
 
       {result.isOrganicByproduct ? (
@@ -303,7 +307,7 @@ export default function ResultView({
 
 const styles = StyleSheet.create({
   container: { padding: 20, gap: 8 },
-  product: { fontSize: 22, fontWeight: "700", color: "#1b3a1b", textTransform: "capitalize" },
+  product: { fontSize: 22, fontWeight: "700", color: "#1b3a1b", textTransform: "capitalize", marginTop: 12 },
   scoreBox: {
     alignItems: "center",
     paddingVertical: 20,
@@ -313,6 +317,7 @@ const styles = StyleSheet.create({
   },
   score: { fontSize: 64, fontWeight: "800" },
   scoreLabel: { fontSize: 14, color: "#555" },
+  scoreLevel: { fontSize: 13, fontWeight: "700", marginTop: 2 },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",

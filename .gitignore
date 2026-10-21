@@ -6,3 +6,5 @@ node_modules/
 .DS_Store
 .expo/
 .vercel/
+# Orijinal 6,8 MB video (küçültülmüş hali: app/assets/loading-bg.mp4)
+app/assets/10041412-hd_1080_1920_24fps.mp4

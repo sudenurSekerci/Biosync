@@ -12,6 +12,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as Location from "expo-location";
+import Wordmark from "./Wordmark";
 import type { Listing } from "../types";
 
 type Photo = { uri: string; base64: string; mimeType: string };
@@ -180,6 +181,7 @@ export default function UploadForm({ draft, onDraftChange, onSubmit }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <Wordmark />
       <Text style={styles.title}>Yeni İlan</Text>
       <Text style={styles.subtitle}>Yan ürününüzü yükleyin, AI kalitesini değerlendirsin.</Text>
 
@@ -277,9 +279,9 @@ export default function UploadForm({ draft, onDraftChange, onSubmit }: Props) {
 
 const styles = StyleSheet.create({
   container: { padding: 20, gap: 8 },
-  title: { fontSize: 24, fontWeight: "700", color: "#1b3a1b" },
+  title: { fontSize: 22, fontWeight: "700", color: "#1b3a1b", marginTop: 12 },
   subtitle: { fontSize: 14, color: "#555", marginBottom: 8 },
-  label: { fontSize: 15, fontWeight: "600", marginTop: 12, color: "#222" },
+  label: { fontSize: 15, fontWeight: "600", marginTop: 16, color: "#222" },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",

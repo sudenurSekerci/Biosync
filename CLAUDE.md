@@ -32,6 +32,10 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   - `react-native-maps` **kaldırıldı**: Expo Go/Android'de Google Maps SDK haritayı hiç çizmedi. Teşhis kanıtı: `onMapReady` geldi; `onMapLoaded` ve tek bir görüntü isteği gelmedi; işaretçiler/daire de çizilmedi. Görüntü engelleme değildi (OSM 200 döndü). Geliştirme derlemesine geçilmez; Expo Go'da kalınır.
 - **Konum/Foto:** `expo-location`, `expo-image-picker`, `expo-image-manipulator` (göndermeden önce uzun kenar 1024 px, JPEG 0.6; Vercel ~4,5 MB istek sınırı).
 - **Web:** `react-dom`, `react-native-web`, `@expo/metro-runtime` (`npx expo install`). Harita web'de aynı Leaflet HTML'iyle `iframe srcDoc` (tek bileşen, `Platform.OS` ayrımı). Her özellik hem Expo Go'da hem web'de çalışmalı.
+- **Video:** `expo-video` (Expo Go'da hazır) — yalnızca yükleme ekranı arka planı (`app/assets/loading-bg.mp4`, ≤1 MB tutulur; sessiz, döngülü, `playsInline`). Video yüklenemezse düz koyu zemin; akış videoyu beklemez. Web'de `play()` VideoView bağlandıktan sonra tekrar çağrılır.
+- **İkon / açılış:** Uygulama ikonu "BS" monogramı ("B" #2e7d32 + "S" #1b3a1b, Segoe UI Black, #f4f8f4 zemin; süsleme yok). Seçenekler: `docs/gorseller/ikon-secenekleri.svg`. `icon.png` 1024, Android uyarlanabilir ön katman (güvenli alan için %44 genişlik), tek renkli ikon, `favicon.png`. Açılış ekranı `expo-splash-screen` eklentisiyle: beyaz zemin + wordmark (`splash-icon.png`, `imageWidth` 240). PNG'ler ffmpeg ile (yalnızca scratchpad'de) çizilir; iki ton tek çizimden dikey bölünerek üretilir (üst üste çizim kenarda koyu iz bırakır).
+- **Görsel dil:** Logo yalnızca yazı (`Wordmark`, "Bio" yeşil + "Sync" koyu; ikon/maskot yok). Yazı ölçeği 12/13/14/15/16/20/22 (puan 64); sayfa başlığı 22, bölüm başlığı 15 kalın, kenar boşluğu 20. Puan ölçeği: ≥80 Yüksek, ≥60 İyi, ≥40 Orta, <40 Düşük (renk + metin).
+- **Bilgi/kaynak kuralı:** Ekranda gösterilen her olgusal bilgi `docs/KAYNAKLAR.md`'de birebir alıntı + sayfa ile kayıtlı olmalı; doğrulanamayan bilgi eklenmez.
 - **Yerleşim:** `react-native-safe-area-context` (`SafeAreaProvider` + `SafeAreaView`, tüm kenarlar; sabit `paddingTop` yok). Geniş ekranda (web) içerik ortada en fazla 480 px sütun, kenarlar nötr gri (`#eef0f2`); dar ekranda tam genişlik.
 - **Canlı:** Vercel, iki ayrı proje: `server` (Express zero-config, `export default app`, `VERCEL` varken `listen` yok; ESM olduğu için göreli import'lar `.js` uzantılı) ve `app` (`app/vercel.json`: `npx expo export -p web` → `dist`). Ortam değişkenleri: server'da `GEMINI_API_KEY`, `GEMINI_MODEL`, `CORS_ORIGINS`; app'te `EXPO_PUBLIC_API_URL`. CORS paket kullanmadan `server/index.ts` içinde.
   - `server/tsconfig.json`'daki `"typeRoots": ["./node_modules/@types"]` **silinmez**: Vercel, TS'yi `/tmp` altında bizim tsconfig'i `extends` eden geçici bir config ile derler; açık `typeRoots` yoksa `types: ["node"]` bulunamaz (TS2688, derleme durur). Değişiklikten önce `npx vercel build --yes` ile yerelde denenebilir.
@@ -48,8 +52,10 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 /app            (Expo)
   App.tsx
   vercel.json       (web derlemesi: expo export -p web → dist)
-  src/components/   (UploadForm, LoadingView, ResultView, MatchCard, MatchMap, SessionImpactBar)
+  src/components/   (UploadForm, LoadingView, ResultView, MatchCard, MatchMap, SessionImpactBar, Wordmark)
   src/industryInfo.ts  (endüstri etiketi bilgisi: atık kategorisi × sektör, statik sözlük)
+  src/loadingFacts.ts  (yükleme ekranı bilgileri; kaynakları docs/KAYNAKLAR.md)
+  assets/loading-bg.mp4 (yükleme arka planı, Pexels; orijinal 6,8 MB dosya .gitignore'da)
   src/services/api.ts
   src/types.ts
 /server
@@ -64,6 +70,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   .env.example
 /docs
   ESLESTIRME_MANTIGI.md   (eşleştirme formülleri, sabitler, kararlar)
+  KAYNAKLAR.md            (ekrandaki bilgilerin ve medyanın kaynakları)
   YOL_HARITASI.md         (teslim günü planı)
   gorseller/              (README ekran görüntüleri)
 CLAUDE.md, README.md      (kökte kalır: CLAUDE.md yalnızca kökten otomatik yüklenir)

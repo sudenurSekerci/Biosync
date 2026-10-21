@@ -238,6 +238,8 @@ npx expo lint
 - **Kurgusal alıcılar**: Firma adları uydurmadır; konumlar gerçek sanayi bölgeleri/teknoparklar civarındadır.
 - **Tahmini değerler**: Taşıma maliyeti, CO₂ ve net iklim etkisi demo varsayımlarına dayanır; ayrıntı ve kaynaklar
   [docs/ESLESTIRME_MANTIGI.md](docs/ESLESTIRME_MANTIGI.md) içinde.
+- **Kaynaklar**: Yükleme ekranındaki bilgiler (UNEP, FAO, IPCC), net etki katsayısı (EPA) ve medya (Pexels video,
+  OpenStreetMap) birebir alıntı ve sayfa numarasıyla [docs/KAYNAKLAR.md](docs/KAYNAKLAR.md) içinde.
 - **Harita**: OpenStreetMap'in herkese açık görüntü sunucusu yoğun trafik için değildir; prototip/demo içindir.
 - **Sunucu erişimi (CORS)**: Canlı sunucuda `CORS_ORIGINS` şimdilik boş; bu yüzden herhangi bir web sitesi
   tarayıcı üzerinden `/analyze` ve `/match` uçlarını çağırabilir (Gemini kotası tüketilebilir). CORS zaten

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520" font-family="'Segoe UI Black', 'Segoe UI', Arial, sans-serif" font-weight="900">
+  <!-- BioSync uygulama ikonu seçenekleri (monogram, süslemesiz). Her biri 256 px ve 64 px. -->
+  <defs>
+    <!-- 1024 birimlik ikon tasarımları; 0.25 (256 px) ve 0.0625 (64 px) ölçekle gösterilir. -->
+    <g id="opt1">
+      <rect width="1024" height="1024" fill="#f4f8f4"/>
+      <text x="512" y="734" font-size="640" text-anchor="middle" fill="#2e7d32">B</text>
+    </g>
+    <g id="opt2">
+      <rect width="1024" height="1024" fill="#f4f8f4"/>
+      <text x="512" y="692" font-size="520" text-anchor="middle"><tspan fill="#2e7d32">B</tspan><tspan fill="#1b3a1b">S</tspan></text>
+    </g>
+    <g id="opt3">
+      <rect width="1024" height="1024" fill="#2e7d32"/>
+      <text x="512" y="734" font-size="640" text-anchor="middle" fill="#ffffff">B</text>
+    </g>
+    <clipPath id="r256"><rect width="1024" height="1024" rx="230"/></clipPath>
+  </defs>
+  <rect width="980" height="520" fill="#ffffff"/>
+
+  <!-- 1: yeşil B, açık zemin -->
+  <g transform="translate(30,40) scale(0.25)" clip-path="url(#r256)"><use href="#opt1"/></g>
+  <g transform="translate(126,330) scale(0.0625)" clip-path="url(#r256)"><use href="#opt1"/></g>
+  <text x="158" y="450" font-family="Segoe UI, Arial, sans-serif" font-weight="600" font-size="20" text-anchor="middle" fill="#222">1 · B (yeşil, açık zemin)</text>
+
+  <!-- 2: BS iki tonlu (wordmark gibi: Bio yeşil, Sync koyu) -->
+  <g transform="translate(362,40) scale(0.25)" clip-path="url(#r256)"><use href="#opt2"/></g>
+  <g transform="translate(458,330) scale(0.0625)" clip-path="url(#r256)"><use href="#opt2"/></g>
+  <text x="490" y="450" font-family="Segoe UI, Arial, sans-serif" font-weight="600" font-size="20" text-anchor="middle" fill="#222">2 · BS (iki tonlu, açık zemin)</text>
+
+  <!-- 3: beyaz B, yeşil zemin -->
+  <g transform="translate(694,40) scale(0.25)" clip-path="url(#r256)"><use href="#opt3"/></g>
+  <g transform="translate(790,330) scale(0.0625)" clip-path="url(#r256)"><use href="#opt3"/></g>
+  <text x="822" y="450" font-family="Segoe UI, Arial, sans-serif" font-weight="600" font-size="20" text-anchor="middle" fill="#222">3 · B (beyaz, yeşil zemin)</text>
+
+  <text x="490" y="500" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle" fill="#777">Üst: 256 px · Alt: 64 px (telefon ana ekranındaki yaklaşık boyut). Köşe yuvarlatma yalnızca önizleme içindir.</text>
+</svg>

@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BUYERS } from "../data/buyers";
+import { BUYERS } from "../data/buyers.js";
 import {
   AVOIDED_LANDFILL_KG_CO2E_PER_KG,
   evaluateBuyers,
   haversineKm,
   MAX_RADIUS_KM,
   matchBuyers,
-} from "./matching";
-import { INDUSTRIES, type Buyer, type QualityResult } from "./schema";
+} from "./matching.js";
+import { INDUSTRIES, type Buyer, type QualityResult } from "./schema.js";
 
 // Çalıştırma: npm test  (Node yerleşik test koşucusu, ek bağımlılık yok)
 

@@ -1,6 +1,6 @@
 import { ApiError, GoogleGenAI } from "@google/genai";
 import { z } from "zod";
-import { qualityResultSchema, type QualityResult } from "./schema";
+import { qualityResultSchema, type QualityResult } from "./schema.js";
 
 const TIMEOUT_MS = 30_000;
 

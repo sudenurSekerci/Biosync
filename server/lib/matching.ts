@@ -1,4 +1,4 @@
-import type { Buyer, EliminationSummary, Match, MatchListing, QualityResult } from "./schema";
+import type { Buyer, EliminationSummary, Match, MatchListing, QualityResult } from "./schema.js";
 
 // ===== DEMO VARSAYIMLARI =====
 // Gerçek piyasa verisi değildir; prototipte davranışı göstermek için seçilmiş değerlerdir.

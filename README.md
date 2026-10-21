@@ -10,12 +10,16 @@ Akış: ilan formu (fotoğraf, atık türü, miktar, konum) → **Gemini Vision*
 > Alıcılar **kurgusaldır** (demo verisi). Eşleştirme formülleri ve sabitler:
 > **[docs/ESLESTIRME_MANTIGI.md](docs/ESLESTIRME_MANTIGI.md)**
 
+**Canlı sürüm:** _(Vercel adresi eklenecek)_
+
 | Katman | Teknoloji |
 |--------|-----------|
 | Mobil | Expo SDK 57 (Expo Go), React Native, TypeScript |
+| Web | Aynı kod, `react-native-web` (`expo export -p web`) |
 | Sunucu | Node.js + Express 5, TypeScript (tsx), zod |
 | AI | Gemini (`@google/genai`), JSON şema + zod doğrulama |
-| Harita | `react-native-webview` + Leaflet + OpenStreetMap |
+| Harita | Leaflet + OpenStreetMap (mobilde `react-native-webview`, web'de `iframe`) |
+| Barındırma | Vercel (sunucu ve web ayrı projeler) |
 
 ---
 
@@ -116,6 +120,45 @@ npx expo start -c
 
 Ardından QR kodu Android'de **Expo Go**, iPhone'da **Kamera** ile okutun. QR okunmazsa Expo Go'da
 "Enter URL manually" → `exp://192.168.1.XXX:8081`.
+
+### Web'de yerel çalıştırma
+
+```powershell
+cd biosync\app
+npx expo start --web
+```
+
+Tarayıcıda `http://localhost:8081`. Sunucu (Terminal 1) açık olmalı; `app/.env` içindeki adres kullanılır.
+
+---
+
+## Canlıya alma (Vercel)
+
+GitHub deposu Vercel'e **iki ayrı proje** olarak bağlanır. `main`'e her push otomatik deploy eder.
+
+**1. Sunucu projesi**
+
+- Vercel → Add New → Project → bu depo → **Root Directory: `server`** (framework: Express, otomatik algılanır).
+- Environment Variables: `GEMINI_API_KEY`, `GEMINI_MODEL` (`gemini-2.5-flash`), `CORS_ORIGINS` (şimdilik boş).
+- Deploy → adresi not edin (örn. `https://biosync-server.vercel.app`) → `…/health` → `{"ok":true}`.
+
+**2. Web projesi**
+
+- Add New → Project → aynı depo → **Root Directory: `app`** (`app/vercel.json` derleme ayarlarını verir).
+- Environment Variables: `EXPO_PUBLIC_API_URL` = sunucunun adresi (sonunda `/` olmadan).
+- Deploy → web adresini not edin (örn. `https://biosync-web.vercel.app`).
+
+**3. CORS**
+
+- Sunucu projesinde `CORS_ORIGINS` = web adresi → Redeploy.
+
+**4. Telefonda Expo Go ile canlı sunucu (isteğe bağlı)**
+
+- `app/.env` → `EXPO_PUBLIC_API_URL=https://biosync-server.vercel.app`, ardından `npx expo start -c`.
+  Bu durumda bilgisayarda sunucu çalıştırmak ve aynı ağda olmak gerekmez.
+
+> `EXPO_PUBLIC_API_URL` derleme anında pakete gömülür; değiştirince web projesini **yeniden deploy** edin.
+> Fotoğraflar gönderilmeden önce 1024 px'e küçültülür (Vercel istek sınırı ~4,5 MB).
 
 ### Sorun giderme
 

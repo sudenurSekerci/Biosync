@@ -30,7 +30,9 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 - **AI:** Gemini Vision (resmi `@google/genai` SDK). Model adı `.env` → `GEMINI_MODEL`; koda sabit yazma.
 - **Harita:** `react-native-webview` (`npx expo install`, Expo Go'da hazır) içinde **Leaflet 1.9.4** (unpkg CDN, sabit sürüm + SRI; npm paketi değil) + OpenStreetMap görüntüleri. Anahtar gerekmez; "© OpenStreetMap katkıda bulunanlar" atfı zorunlu ve görünür kalır.
   - `react-native-maps` **kaldırıldı**: Expo Go/Android'de Google Maps SDK haritayı hiç çizmedi. Teşhis kanıtı: `onMapReady` geldi; `onMapLoaded` ve tek bir görüntü isteği gelmedi; işaretçiler/daire de çizilmedi. Görüntü engelleme değildi (OSM 200 döndü). Geliştirme derlemesine geçilmez; Expo Go'da kalınır.
-- **Konum/Foto:** `expo-location`, `expo-image-picker`
+- **Konum/Foto:** `expo-location`, `expo-image-picker`, `expo-image-manipulator` (göndermeden önce uzun kenar 1024 px, JPEG 0.6; Vercel ~4,5 MB istek sınırı).
+- **Web:** `react-dom`, `react-native-web`, `@expo/metro-runtime` (`npx expo install`). Harita web'de aynı Leaflet HTML'iyle `iframe srcDoc` (tek bileşen, `Platform.OS` ayrımı). Her özellik hem Expo Go'da hem web'de çalışmalı.
+- **Canlı:** Vercel, iki ayrı proje: `server` (Express zero-config, `export default app`, `VERCEL` varken `listen` yok; ESM olduğu için göreli import'lar `.js` uzantılı) ve `app` (`app/vercel.json`: `npx expo export -p web` → `dist`). Ortam değişkenleri: server'da `GEMINI_API_KEY`, `GEMINI_MODEL`, `CORS_ORIGINS`; app'te `EXPO_PUBLIC_API_URL`. CORS paket kullanmadan `server/index.ts` içinde.
 - **State:** React `useState` / `useReducer`. Navigasyon kütüphanesi YOK; tek ekranda `step` state'i ile koşullu render.
 - **Veri:** Alıcılar `server/data/buyers.ts` (veya `.json`) içinde statik mock.
 - **Doğrulama:** `zod` (server) — Gemini yanıtı `QualityResult` zod şemasıyla doğrulanır.
@@ -43,6 +45,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 ```
 /app            (Expo)
   App.tsx
+  vercel.json       (web derlemesi: expo export -p web → dist)
   src/components/   (UploadForm, LoadingView, ResultView, MatchCard, MatchMap)
   src/services/api.ts
   src/types.ts

@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as Location from "expo-location";
 import type { Listing } from "../types";
 
@@ -48,11 +49,34 @@ function parseNumber(text: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// Sıkıştırma aşağıda (preparePhoto) tek seferde yapılır; seçicide çift sıkıştırma olmasın.
 const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
   mediaTypes: ["images"],
-  quality: 0.5,
-  base64: true,
+  quality: 1,
 };
+
+// Vercel istek sınırı ~4,5 MB: uzun kenar 1024 px, JPEG 0.6 (tipik çıktı 100-300 KB).
+const MAX_PHOTO_EDGE_PX = 1024;
+const PHOTO_JPEG_QUALITY = 0.6;
+// base64 uzunluğu için güvenlik sınırı (~3 MB veri); aşarsa gönderilmez.
+const MAX_BASE64_LENGTH = 4_000_000;
+
+async function preparePhoto(asset: ImagePicker.ImagePickerAsset): Promise<Photo | null> {
+  const context = ImageManipulator.manipulate(asset.uri);
+  if (Math.max(asset.width, asset.height) > MAX_PHOTO_EDGE_PX) {
+    context.resize(
+      asset.width >= asset.height ? { width: MAX_PHOTO_EDGE_PX } : { height: MAX_PHOTO_EDGE_PX }
+    );
+  }
+  const image = await context.renderAsync();
+  const saved = await image.saveAsync({
+    compress: PHOTO_JPEG_QUALITY,
+    format: SaveFormat.JPEG,
+    base64: true,
+  });
+  if (!saved.base64 || saved.base64.length > MAX_BASE64_LENGTH) return null;
+  return { uri: saved.uri, base64: saved.base64, mimeType: "image/jpeg" };
+}
 
 export default function UploadForm({ draft, onDraftChange, onSubmit }: Props) {
   const { photo, wasteType, quantityText, latText, lngText, manualLocation } = draft;
@@ -87,11 +111,12 @@ export default function UploadForm({ draft, onDraftChange, onSubmit }: Props) {
           : await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
       if (result.canceled) return;
       const asset = result.assets[0];
-      if (!asset?.base64) {
-        setNotice("Fotoğraf okunamadı. Lütfen tekrar deneyin.");
+      const prepared = asset ? await preparePhoto(asset) : null;
+      if (!prepared) {
+        setNotice("Fotoğraf okunamadı veya çok büyük. Lütfen başka bir fotoğraf deneyin.");
         return;
       }
-      setPhoto({ uri: asset.uri, base64: asset.base64, mimeType: asset.mimeType ?? "image/jpeg" });
+      setPhoto(prepared);
     } catch {
       setNotice(
         source === "camera"

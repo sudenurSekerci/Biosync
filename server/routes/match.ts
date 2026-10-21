@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { matchRequestSchema, type MatchResponse } from "../lib/schema";
-import { evaluateBuyers, MAX_RADIUS_KM } from "../lib/matching";
-import { BUYERS } from "../data/buyers";
+import { matchRequestSchema, type MatchResponse } from "../lib/schema.js";
+import { evaluateBuyers, MAX_RADIUS_KM } from "../lib/matching.js";
+import { BUYERS } from "../data/buyers.js";
 
 export const matchRouter = Router();
 

@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/metro-runtime": "~57.0.17",
     "expo": "^57.0.0",
+    "expo-image-manipulator": "~57.0.21",
     "expo-image-picker": "~57.0.20",
     "expo-location": "~57.0.21",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-web": "^0.21.2",
     "react-native-webview": "13.16.1"
   },
   "devDependencies": {

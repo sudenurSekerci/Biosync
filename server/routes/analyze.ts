@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { listingSchema } from "../lib/schema";
-import { analyzeImage, GeminiError } from "../lib/gemini";
+import { listingSchema } from "../lib/schema.js";
+import { analyzeImage, GeminiError } from "../lib/gemini.js";
 
 export const analyzeRouter = Router();
 

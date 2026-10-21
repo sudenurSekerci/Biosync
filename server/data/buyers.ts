@@ -1,4 +1,4 @@
-import type { Buyer } from "../lib/schema";
+import type { Buyer } from "../lib/schema.js";
 
 // TÜM ALICILAR KURGUSALDIR (demo). Firma adları uydurmadır; konumlar yalnızca
 // gerçekçi olsun diye bilinen sanayi bölgeleri/teknoparklar civarına yerleştirildi.

@@ -211,11 +211,13 @@ Göstermeye değer senaryolar:
 
 ## Ekran görüntüleri
 
-<!-- Görseller docs/gorseller/ altına aşağıdaki adlarla eklenecek (teslimden önce). -->
+Android, Expo Go; İstanbul'da 500 kg portakal kabuğu ilanı. Formdaki konum satırı gizlilik için bulanıklaştırıldı.
 
-| Form | Analiz | Sonuç | Eşleşmeler + harita |
-|------|--------|-------|---------------------|
-| ![Form](docs/gorseller/1-form.png) | ![Analiz](docs/gorseller/2-analiz.png) | ![Sonuç](docs/gorseller/3-sonuc.png) | ![Eşleşmeler ve harita](docs/gorseller/4-eslesme-harita.png) |
+| 1 · Form | 2 · Analiz | 3 · Sonuç |
+|:---:|:---:|:---:|
+| <img src="docs/gorseller/1-form.jpg" alt="Fotoğraf, atık türü, miktar ve konumla doldurulmuş ilan formu" width="240"> | <img src="docs/gorseller/2-analiz.jpg" alt="Videolu yükleme ekranı: fotoğraf önizlemesi ve kaynaklı bilgi" width="240"> | <img src="docs/gorseller/3-sonuc.jpg" alt="Kalite Güven Puanı 88, bozulma durumu, uygun endüstriler ve değerlendirme" width="240"> |
+| **4 · Eşleşmeler + harita** | **5 · Teklif** | **6 · Oturum etkisi** |
+| <img src="docs/gorseller/4-eslesme-harita.jpg" alt="Haritada vurgulanan alıcı ve açık eşleşme kartı" width="240"> | <img src="docs/gorseller/5-teklif.jpg" alt="Teklif onay adımı" width="240"> | <img src="docs/gorseller/6-oturum.jpg" alt="Kabul edilen teklif sonrası üstteki oturum etkisi şeridi" width="240"> |
 
 ---
 

@@ -39,7 +39,7 @@ function BackgroundVideo() {
   return (
     <VideoView
       player={player}
-      style={StyleSheet.absoluteFill}
+      style={styles.video}
       contentFit="cover"
       nativeControls={false}
       // Android: varsayılan SurfaceView ayrı katmanda çizilir, üstteki koyu katman/içerikle birlikte
@@ -111,7 +111,10 @@ export default function LoadingView({ error, onRetry, onBack, photoUri }: Props)
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#16211a" },
+  // overflow: web'de <video> doğal genişliğinde (540 px) kalıp dar sütundan taşmasın.
+  container: { flex: 1, backgroundColor: "#16211a", overflow: "hidden" },
+  // Web'de <video> "replaced element": left/right ile esnemez, açık width/height gerekir.
+  video: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
   overlay: {
     position: "absolute",
     top: 0,

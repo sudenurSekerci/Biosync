@@ -1,7 +1,8 @@
 import type { Listing, MatchResponse, QualityResult } from "../types";
 
 // app/.env → EXPO_PUBLIC_API_URL (telefonda bilgisayarın LAN IP'si, örn. http://192.168.1.108:3000)
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+// Sondaki "/" temizlenir: "https://x.vercel.app/" + "/analyze" → "//analyze" isteği CORS hatasına düşüyordu.
+const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "");
 
 // Sunucunun Gemini zaman aşımı 30 sn; ağ payıyla biraz üstü.
 const ANALYZE_TIMEOUT_MS = 35_000;

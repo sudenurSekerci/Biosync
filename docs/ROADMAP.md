@@ -50,24 +50,24 @@ Sadece matching modülü + testleri + teklif ekranında seçim. Taşıyıcı ayr
 
 ## Faz C — Firestore + Türkiye geneli
 Koleksiyonlar:
-- `users` {uid, role: producer|buyer|admin, name, city, location}
+- `users` {uid, role: producer|buyer|admin, name, city, location, kvkkConsentAt}
 - `listings` {ownerUid, wasteType, quantityKg, location, photoUrl?, ai: {...}, status, createdAt}
 - `buyers` {uid?, name, industries[], acceptedWasteTypes[], monthlyCapacityKg, pricePerKg, location, city}
-- `matches` {listingId, buyerId, distanceKm, transportCostTRY, co2Kg, netProfitTRY, status: offered|accepted|rejected|completed, rating?}
+- `matches` {listingId, buyerId, distanceKm, transportMode, transportCostTRY, co2Kg, netProfitTRY, status: offered|accepted|rejected|completed, rating?}
 - `impact` {global: totalKgDiverted, totalCo2AvoidedKg, completedMatches}
 1. Kodda sabit alıcıları seed script ile Firestore'a taşı.
 2. Türkiye geneli: sanayi yoğun illerde (OSB'ler) kurgusal alıcılar seed'le; her alıcı gerçekçi koordinat + 1–3 kabul edilen atık türü. Harita merkezi kullanıcı konumu; 50 km sınırı aynen kalır.
-3. Gemini anahtarı ve eşleştirme Node'da kalır; istemci sonucu yazar.
+3. Gemini anahtarı ve eşleştirme Node'da kalır. Firestore kuralları kilitli başlar (`allow read, write: if false`); tüm okuma/yazma Node'da Admin SDK ile. Kullanıcı bazlı kurallar Faz D'de açılır. Test modu kuralları kullanılmaz.
 4. `impact` oturum sayacının yerine geçer (kalıcı).
 5. **Açık karar (Faz C başında sorulur):** fotoğraf saklanacak mı? Firebase Storage yeni bucket'lar için ücretli Blaze planı isteyebilir. Saklanmazsa `photoUrl` boş kalır, yalnızca AI sonucu kaydedilir.
 6. Güvenlik: Faz D bitene kadar push/deploy yok (bkz. Çalışma kuralları).
 
 ## Faz D — Firebase Auth + roller + navigasyon
+0. **D.0 — ayrı commit, davranış değişmez:** `step` yöntemi yerine `expo-router` (`npx expo install`, SDK 57 uyumlu; Expo Go + web'de çalışmalı). CLAUDE.md §3, §4, §8 bu adımda güncellenir.
 1. E-posta/şifre. Kayıtta rol seçimi: üretici / alıcı. Admin yalnızca Firestore'da elle atanır.
-2. KVKK: kısa aydınlatma metni + zorunlu onay kutusu. Toplanan veri: e-posta, firma/kişi adı, il, konum. TC kimlik, vergi no, kişisel telefon toplanmaz.
+2. KVKK: kısa aydınlatma metni + zorunlu onay kutusu. Toplanan veri: e-posta, firma/kişi adı, il, konum. TC kimlik, vergi no, kişisel telefon toplanmaz. Metne: "Fotoğraf analiz için Google Gemini'ye (yurt dışı) gönderilir; metin demo amaçlıdır."
 3. Security rules: kullanıcı yalnızca kendi ilanını/profilini düzenler; `impact` yalnızca backend yazar.
 4. Giriş yoksa yükleme/teklif ekranlarına erişim yok.
-5. Navigasyon: `step` yöntemi yerine `expo-router` (`npx expo install`, SDK 57 uyumlu; Expo Go + web'de çalışmalı). CLAUDE.md §3, §4, §8 bu fazda güncellenir.
 
 ## Faz E — Paneller + katkı toplamı + puanlama
 - **Üretici:** ilanlarım, eşleşmeler, teklif durumu. Üstte katkı kartı: toplam yönlendirilen kg, önlenen CO₂, tamamlanan eşleşme.

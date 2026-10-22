@@ -6,7 +6,8 @@
 
 ## Çalışma kuralları
 - **Commit:** Her faz sonunda tsc (app+server) + lint + `npm test` → kısa özet → kullanıcı onayıyla commit. Faz içinde büyük adımlar ayrı commit olabilir. Commit öncesi `git status` (`.env` ve anahtarlar asla girmez).
-- **Push yok:** Kullanıcı açıkça istemeden push yapılmaz. Faz C (Firestore) ile Faz D (Auth + security rules) bitmeden kesinlikle push/deploy yapılmaz; aradaki sürümde veritabanı kimlik doğrulamasız kalır.
+- **Dal:** Geliştirme `dev` dalında yapılır. `dev`'e push serbest (yedek amaçlı); Vercel `dev` dalını deploy etmez (`app/vercel.json` ve `server/vercel.json`: `git.deploymentEnabled.dev = false`).
+- **main:** `main`'e merge yalnızca Faz D (Auth + security rules) bittikten sonra ve kullanıcı onayıyla. Aradaki sürümde canlıya çıkış yok.
 - **İsimler:** Mevcut kod adları korunur: `quantityKg`, `transportCostTRY`, `materialValueTRY`, `netProfitTRY`, `industries[]`. Yeni alanlar da aynı kalıpla (`...TRY`, `...Kg`) adlandırılır.
 - **Bağımlılık:** Yeni paket her fazın başında onayla eklenir ve CLAUDE.md §3 listesine yazılır.
 

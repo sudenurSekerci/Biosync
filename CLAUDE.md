@@ -38,7 +38,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 - **Görsel dil:** Logo yalnızca yazı (`Wordmark`, "Bio" yeşil + "Sync" koyu; ikon/maskot yok). Yazı ölçeği 12/13/14/15/16/20/22 (puan 64); sayfa başlığı 22, bölüm başlığı 15 kalın, kenar boşluğu 20. Puan ölçeği: ≥80 Yüksek, ≥60 İyi, ≥40 Orta, <40 Düşük (renk + metin).
 - **Bilgi/kaynak kuralı:** Ekranda gösterilen her olgusal bilgi `docs/KAYNAKLAR.md`'de birebir alıntı + sayfa ile kayıtlı olmalı; doğrulanamayan bilgi eklenmez.
 - **Yerleşim:** `react-native-safe-area-context` (`SafeAreaProvider` + `SafeAreaView`, tüm kenarlar; sabit `paddingTop` yok). Geniş ekranda (web) içerik ortada en fazla 480 px sütun, kenarlar nötr gri (`#eef0f2`); dar ekranda tam genişlik.
-- **Canlı:** Vercel, iki ayrı proje: `server` (Express zero-config, `export default app`, `VERCEL` varken `listen` yok; ESM olduğu için göreli import'lar `.js` uzantılı) ve `app` (`app/vercel.json`: `npx expo export -p web` → `dist`). Ortam değişkenleri: server'da `GEMINI_API_KEY`, `GEMINI_MODEL`, `CORS_ORIGINS`; app'te `EXPO_PUBLIC_API_URL`. CORS paket kullanmadan `server/index.ts` içinde.
+- **Canlı:** Vercel, iki ayrı proje: `server` (Express zero-config, `export default app`, `VERCEL` varken `listen` yok; ESM olduğu için göreli import'lar `.js` uzantılı) ve `app` (`app/vercel.json`: `npx expo export -p web` → `dist`). İki `vercel.json`'da `git.deploymentEnabled.dev = false`: `dev` dalı deploy edilmez. Ortam değişkenleri: server'da `GEMINI_API_KEY`, `GEMINI_MODEL`, `CORS_ORIGINS`; app'te `EXPO_PUBLIC_API_URL`. CORS paket kullanmadan `server/index.ts` içinde.
   - `server/tsconfig.json`'daki `"typeRoots": ["./node_modules/@types"]` **silinmez**: Vercel, TS'yi `/tmp` altında bizim tsconfig'i `extends` eden geçici bir config ile derler; açık `typeRoots` yoksa `types: ["node"]` bulunamaz (TS2688, derleme durur). Değişiklikten önce `npx vercel build --yes` ile yerelde denenebilir.
 - **State:** React `useState` / `useReducer`. Navigasyon kütüphanesi YOK; tek ekranda `step` state'i ile koşullu render.
 - **Veri:** Alıcılar `server/data/buyers.ts` (veya `.json`) içinde statik mock.
@@ -70,6 +70,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   lib/schema.ts     (zod şemaları + türetilmiş tipler; tek kaynak)
   data/buyers.ts
   .env.example
+  vercel.json       (yalnızca dev dalı deploy kapatma)
 /docs
   ESLESTIRME_MANTIGI.md   (eşleştirme formülleri, sabitler, kararlar)
   KAYNAKLAR.md            (ekrandaki bilgilerin ve medyanın kaynakları)

@@ -1,4 +1,4 @@
-Yol haritası: @docs/YOL_HARITASI.md
+Aktif plan: @docs/ROADMAP.md
 
 # BioSync – Cursor Kuralları (PDR'a sadık)
 
@@ -19,9 +19,10 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 
 **Fark (PDR §4):** Hedef downcycling (enerji/yem) değil **upcycling**. Eşleşme hedefleri yeni nesil biyomateryal/kozmetik tesisleridir; biyogaz/yem tesisi eşleştirme.
 
-## 2. Prototip Kapsamı (Task 3)
-**Yapılacak:** (a) ilan formu, (b) AI kalite değerlemesi (gerçek çalışır), (c) lokal eşleştirme + harita (alıcılar mock).
-**Yapılmayacak:** Auth, ödeme, veritabanı, push bildirim, çoklu dil, admin paneli, sohbet/mesajlaşma, gerçek alıcı onboarding. İstenmeden ekleme.
+## 2. Kapsam
+**Tamamlanan prototip:** (a) ilan formu, (b) AI kalite değerlemesi (gerçek çalışır), (c) lokal eşleştirme + harita.
+**Sıradaki kapsam:** yalnızca [docs/ROADMAP.md](docs/ROADMAP.md)'deki fazlar (Firestore, Firebase Auth + roller, paneller, puanlama, yol rotası dahil). Bu dosyadaki bir kural ROADMAP'teki aktif fazla çelişiyorsa ROADMAP geçerlidir ve ilgili kural o fazda burada güncellenir.
+**Yapılmayacak:** Ödeme, push bildirim, çoklu dil, sohbet/mesajlaşma ve ROADMAP'te olmayan her şey. İstenmeden ekleme.
 
 ## 3. Teknoloji (sabit, değiştirme)
 - **Mobil:** React Native + **Expo (managed, Expo Go ile çalışmalı)** + **TypeScript**
@@ -72,7 +73,8 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 /docs
   ESLESTIRME_MANTIGI.md   (eşleştirme formülleri, sabitler, kararlar)
   KAYNAKLAR.md            (ekrandaki bilgilerin ve medyanın kaynakları)
-  YOL_HARITASI.md         (teslim günü planı)
+  ROADMAP.md              (aktif plan; CLAUDE.md'den otomatik yüklenir)
+  archive/                (bitmiş planlar; otomatik yüklenmez)
   gorseller/              (README ekran görüntüleri)
 CLAUDE.md, README.md      (kökte kalır: CLAUDE.md yalnızca kökten otomatik yüklenir)
 ```
@@ -146,32 +148,10 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLEST
 
 ## 9. FAZLAR (her seferinde SADECE biri)
 
-**KURAL: Kullanıcı açıkça "Faz N'i yap" demeden Faz N'e başlama. Faz bitince DUR, yaptıklarını 5 satırda özetle, "Bitti kriterleri"ni tek tek işaretle ve kullanıcının onayını bekle. Sonraki fazın kodunu yazma, hazırlık amaçlı bile olsa.**
+**KURAL: Kullanıcı açıkça "Faz X'i yap" demeden Faz X'e başlama. Faz bitince DUR, yaptıklarını 5 satırda özetle, "Bitti kriterleri"ni tek tek işaretle ve kullanıcının onayını bekle. Sonraki fazın kodunu yazma, hazırlık amaçlı bile olsa.**
 
-### Faz 0 – Kurulum
-- `app` (Expo TS) ve `server` (Node+Express+TS) iskeleti, `.env.example`, `.gitignore` (.env dahil).
-- Paketleri `npx expo install` ile kur (Expo uyumlu sürüm).
-- **Bitti:** `npx expo start` boş ekranı açıyor; `GET /health` → `{ok:true}`.
-
-### Faz 1 – UI İskeleti (AI yok)
-- 3 adımlı akış, form, loading (spinner + "AI Ürün Kalitesini Analiz Ediyor..."), sonuç ekranı (sahte `QualityResult` sabit verisiyle).
-- Foto ve konum seçimi gerçek çalışır.
-- **Bitti:** Form doldurulup "Analiz Et" → 2 sn loading → sonuç ekranı sahte veriyle görünüyor; eksik alanda buton pasif.
-
-### Faz 2 – Gemini Entegrasyonu
-- `POST /analyze` → Gemini → doğrulanmış `QualityResult`.
-- Mobil `api.ts` ile bağla, sahte veriyi kaldır; hata/yeniden dene akışı.
-- **Bitti:** Gerçek bir kabuk fotoğrafı mantıklı puan/bozulma döndürüyor; alakasız foto düşük puan alıyor; ağ hatasında hata ekranı çıkıyor.
-
-### Faz 3 – Lokal Eşleştirme + Harita
-- `buyers.ts` içinde 6-8 kurgusal alıcı (farklı endüstriler, bazıları yarıçap dışında).
-- `POST /match` (veya mobilde saf fonksiyon) → `Match[]`.
-- Sonuç ekranında: "Eşleşme Bulundu" kartları (alıcı, mesafe, taşıma maliyeti, net kâr, CO₂, "Çöpe gitmesi önlenen: X kg", "Kurgusal demo alıcısı") + haritada kullanıcı ve **yalnız yarıçap içindeki** alıcılar + yarıçap dairesi.
-- Eşleşme yoksa "Yakın çapta uygun alıcı bulunamadı" mesajı.
-- **Bitti:** Konum değişince liste/harita değişiyor; yarıçap dışı alıcı görünmüyor; netProfit ≤ 0 olan çıkmıyor.
-
-### Faz 4 – Demo Cilası (opsiyonel, istenirse)
-- Etki özeti satırı (örn. "Bu ilanla ≈X kg CO₂ tasarruf"), küçük UI düzeltmeleri, README (kurulum + demo adımları).
+- Aktif fazlar ve çalışma kuralları (commit/push, isimlendirme): [docs/ROADMAP.md](docs/ROADMAP.md). "Faz X" her zaman ROADMAP'teki fazı ifade eder.
+- Tamamlananlar: ilk prototip (Faz 0-4) ve teslim günü planı (`docs/archive/YOL_HARITASI.md`, eski "Faz A-E"). Arşiv yalnızca geçmiş kaydıdır; fazları referans alınmaz.
 
 ## 10. Hata Önleme Kuralları (Cursor için)
 1. **Uydurma yok.** Emin olmadığın paket/API/prop varsa kurmadan önce resmi dokümanı veya `node_modules` tipini kontrol et. Var olmayan paket ismi yazma.
@@ -184,4 +164,4 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLEST
 8. Fiziksel cihazda backend'e erişim için `localhost` yerine bilgisayarın LAN IP'si kullanılır; bunu `EXPO_PUBLIC_API_URL` ile ayarlanabilir yap.
 9. Hata alırsan: hata mesajını tam oku → kök nedeni bul → tek düzeltme yap → tekrar çalıştır. Aynı şeyi rastgele değiştirip deneme.
 10. Emin olmadığın bir gereksinimde varsayım yapıp ilerleme; kısa bir soru sor.
-11. PDR dışı özellik, auth, DB, ödeme, mesajlaşma **yasak** (bkz. §2).
+11. PDR ve ROADMAP dışı özellik, ödeme, mesajlaşma **yasak** (bkz. §2). Auth ve DB yalnızca ROADMAP Faz C-D kapsamında.

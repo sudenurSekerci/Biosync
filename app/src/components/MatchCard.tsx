@@ -101,9 +101,18 @@ export default function MatchCard(props: Props) {
   return (
     <View style={[styles.card, isBest && styles.bestCard, expanded && styles.expandedCard]}>
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ expanded }}>
-        {isBest && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>En Kârlı Eşleşme</Text>
+        {(isBest || match.shelfLifeRisk) && (
+          <View style={styles.badgeRow}>
+            {isBest && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Önerilen Eşleşme</Text>
+              </View>
+            )}
+            {match.shelfLifeRisk && (
+              <View style={[styles.badge, styles.riskBadge]}>
+                <Text style={[styles.badgeText, styles.riskBadgeText]}>Raf ömrü sınırda</Text>
+              </View>
+            )}
           </View>
         )}
         <View style={styles.headerRow}>
@@ -146,15 +155,11 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: "#ddd", borderRadius: 12, padding: 14, gap: 4, backgroundColor: "#fff" },
   bestCard: { borderColor: "#2e7d32", borderWidth: 2, backgroundColor: "#f4f8f4" },
   expandedCard: { borderColor: "#1b3a1b" },
-  badge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#2e7d32",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 4,
-  },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 4 },
+  badge: { backgroundColor: "#2e7d32", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 },
   badgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  riskBadge: { backgroundColor: "#fff3e0", borderWidth: 1, borderColor: "#e0a050" },
+  riskBadgeText: { color: "#8a4b00" },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   name: { flex: 1, fontSize: 16, fontWeight: "700", color: "#1b3a1b" },
   toggle: { fontSize: 13, color: "#2e7d32", fontWeight: "600" },

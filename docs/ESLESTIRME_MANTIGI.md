@@ -22,8 +22,12 @@ Bir ilan için her alıcı sırayla şu kapılardan geçer. İlk takıldığı k
 | 4 | Raf ömrü, taşıma için gereken süreye yetiyor mu? | **raf ömrü** nedeniyle elendi |
 | 5 | Net kâr > 0 mı? | **zarar** nedeniyle elendi |
 
-Geçen alıcılar sıralanır: **önce net kâr (yüksekten düşüğe), eşitlikte CO₂ (düşükten yükseğe)**.
-İlk sıradaki "En Kârlı Eşleşme" olarak vurgulanır.
+Geçen alıcılar sıralanır (bkz. §2.8):
+1. **Raf ömrü güvenli olanlar önce** (`shelfLifeRisk = false`); riskli eşleşme, daha kârlı olsa bile güvenlinin önüne geçemez.
+2. **Karbon düzeltmeli değer** yüksekten düşüğe: `netKâr − co2Kg × CARBON_PRICE_TRY_PER_KG`.
+3. Eşitlikte **mesafe** yakından uzağa.
+
+İlk sıradaki "Önerilen Eşleşme" olarak vurgulanır. Karbon düzeltmesi yüzünden ilk sıradaki her zaman en kârlı alıcı olmayabilir; bu yüzden rozet "En Kârlı" demez.
 
 `matchBuyers()` yalnızca sıralı eşleşmeleri döner (CLAUDE.md §6 imzası). `evaluateBuyers()` aynı hesabı
 yapar ve ek olarak elenme sayılarını döner; sonuç ekranındaki "2 alıcı zarar nedeniyle, 1 alıcı mesafe
@@ -97,7 +101,7 @@ co2Kg = sefer × d × aracınEmisyonu        (hafif ticari: d × 0,5 kg/km)
 
 Yaklaşık tek yön değerler (demo varsayımı): panelvan ≈0,25, kamyonet ≈0,4, kamyon ≈0,8 kg CO₂/km;
 dönüş dahil ×2. Taşınan kilogramla doğrudan orantılı değildir; seçilen araca ve sefer sayısına bağlıdır.
-Kartta "Taşıma CO₂" olarak gösterilir; sıralamada eşitlik bozucudur.
+Kartta "Taşıma CO₂" olarak gösterilir; sıralamada karbon fiyatıyla net kâra yansır (§2.8).
 
 ### 2.5b Net iklim etkisi (tahmini)
 
@@ -112,7 +116,7 @@ netİklimEtkisi        = önlenenÇöplükEmisyonu − co2Kg                    
 - **Dönüşüm:** 1 kısa ton = 0,90718474 metrik ton → 0,54 / 0,90718474 ≈ **0,595 kg CO₂e / kg**.
 - **Varsayımlar:** ABD ortalama çöplük gazı toplama koşulları (Türkiye'de farklı olabilir); alıcının işleme
   emisyonu dahil değildir. Bu yüzden ekranda **"tahmini"** yazılır.
-- Her eşleşme için `netImpactCo2eKg` olarak hesaplanır; sonuç ekranında **en kârlı eşleşmenin** değeri gösterilir.
+- Her eşleşme için `netImpactCo2eKg` olarak hesaplanır; sonuç ekranında **önerilen (ilk sıradaki) eşleşmenin** değeri gösterilir.
 - Örnek: İstanbul, 100 kg, İTÜ Arı Teknokent → 100 × 0,595 = 59,5 kg önlenir − 6,5 kg taşıma = **≈53 kg CO₂e tasarruf**.
 
 ### 2.6 Raf ömrü kuralı
@@ -123,7 +127,7 @@ gerekenGün = HANDLING_DAYS + d / (AVG_SPEED_KMH × DRIVING_HOURS_PER_DAY)
 ```
 
 - `estimatedShelfLifeDays < gerekenGün` → **elenir** (ürün yolda bozulur).
-- `estimatedShelfLifeDays < gerekenGün + 1 gün` (`SHELF_LIFE_BUFFER_DAYS`) → eşleşir ama **skor yarıya iner** (riskli).
+- `estimatedShelfLifeDays < gerekenGün + 1 gün` (`SHELF_LIFE_BUFFER_DAYS`) → eşleşir ama **riskli** (`shelfLifeRisk`): skor yarıya iner, sıralamada tüm güvenli eşleşmelerin arkasına düşer, kartta "Raf ömrü sınırda" rozeti çıkar.
 
 50 km yarıçap içinde yol süresi en fazla ~0,16 gündür; yani pratikte kural "raf ömrü ~1,2 günden kısaysa
 ele, ~2,2 günden kısaysa riskli say" demektir.
@@ -131,10 +135,21 @@ ele, ~2,2 günden kısaysa riskli say" demektir.
 ### 2.7 Skor (0-100, yalnızca gösterim)
 
 ```
-skor = round( netKâr / enİyiNetKâr × 100 × tazelikKatsayısı )      tazelikKatsayısı ∈ {1; 0,5}
+düzeltilmişDeğer = netKâr − co2Kg × CARBON_PRICE_TRY_PER_KG
+skor = round( max(0, düzeltilmişDeğer) / enİyiDüzeltilmişDeğer × 100 × tazelikKatsayısı )   tazelikKatsayısı ∈ {1; 0,5}
 ```
 
-İlk eşleşme her zaman 100'dür (riskli değilse). **Skor sıralamayı değiştirmez**; sıralama §1'deki kurala göredir.
+Riskli eşleşme yoksa ilk eşleşme her zaman 100'dür. Skor yalnızca gösterimdir; sıralama §1'deki kurala göredir.
+
+### 2.8 Karbon düzeltmeli sıralama
+
+```
+düzeltilmişDeğer = netKâr − co2Kg × CARBON_PRICE_TRY_PER_KG          (CARBON_PRICE_TRY_PER_KG = 4 TL / kg CO₂)
+```
+
+- PDR §2 "en düşük karbon ayak iziyle en kârlı" eşleşmeyi tek sayıya indirger. **Demo varsayımıdır**, gerçek bir karbon piyasası fiyatı değildir.
+- Yalnızca sıralamayı etkiler; kartta gösterilen kâr, maliyet ve CO₂ rakamları değişmez.
+- Etkisi bilinçli olarak küçüktür: panelvanla 1 km fazla yol ≈ 0,5 kg CO₂ ≈ 2 TL ceza (taşıma maliyeti ise 10 TL/km). Yani karbon, yalnızca net kârı birbirine yakın alıcıların sırasını değiştirir.
 
 ---
 
@@ -211,11 +226,13 @@ Her şehirde 4 alıcı vardır; şehir merkezindeki demo noktasına göre:
 
 | Alıcı | d | Taşıma = 50 + 10·d | Değer = 100 · fiyat · 0,9 | Net kâr | CO₂ = 0,5·d | Skor | Sonuç |
 |-------|---:|---:|---:|---:|---:|---:|---|
-| İTÜ Arı Teknokent | 12,9 | 179 | 1.080 | **901** | 6,5 | 100 | 1. (En Kârlı) |
-| Tuzla Deri OSB | 23,2 | 282 | 810 | **528** | 11,6 | 59 | 2. |
+| İTÜ Arı Teknokent | 12,9 | 179 | 1.080 | **901** | 6,5 | 100 | 1. (Önerilen) |
+| Tuzla Deri OSB | 23,2 | 282 | 810 | **528** | 11,6 | 55 | 2. |
 | Dilovası OSB | 43,3 | 483 | 180 | −303 | – | – | zarar → elendi |
 | Silivri | 73,5 | – | – | – | – | – | mesafe → elendi |
 | Ankara/Antalya alıcıları | >100 | – | – | – | – | – | bölge dışı (özete girmez) |
+
+Karbon düzeltmeli değerler: 901 − 6,5 × 4 = **875**; 528 − 11,6 × 4 = **481,6** → Tuzla skoru 481,6 / 875 × 100 ≈ 55.
 
 Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."**
 
@@ -231,7 +248,8 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 | `AVOIDED_LANDFILL_KG_CO2E_PER_KG` | ≈0,595 | Çöplükten çevrilen kg başına önlenen emisyon (EPA WARM v15) |
 | `HANDLING_DAYS` | 1 | Toplama + işleme süresi (gün) |
 | `AVG_SPEED_KMH` × `DRIVING_HOURS_PER_DAY` | 40 × 8 | Günlük yol kapasitesi = 320 km |
-| `SHELF_LIFE_BUFFER_DAYS` | 1 | Bu paydan az kalırsa skor yarıya iner |
+| `SHELF_LIFE_BUFFER_DAYS` | 1 | Bu paydan az kalırsa eşleşme riskli: skor yarıya iner, sıralamada güvenlilerin arkasına düşer |
+| `CARBON_PRICE_TRY_PER_KG` | 4 | Sıralamada taşıma CO₂'sinin TL karşılığı (§2.8) |
 
 `MAX_RADIUS_KM` mobilde ayrıca tanımlanmaz; `POST /match` yanıtındaki `radiusKm` ile gelir.
 
@@ -247,7 +265,9 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 | Kuş uçuşu (Haversine) | Ek servis/anahtar gerektirmez; demo için yeterli |
 | Organik değilse hiç eşleştirme yok | AI "tarımsal yan ürün değil" dediyse alıcı aramak anlamsız |
 | AI en fazla 3 endüstri önerir, sıralı | Her ürüne her endüstri uygun görünmesin; eşleşme anlamlı kalsın |
-| Skor sıralamayı değiştirmez | CLAUDE.md §6: sıralama net kâr, eşitlikte CO₂ |
+| Karbon düzeltmeli sıralama (ROADMAP Faz A) | PDR §2 "en düşük karbonla en kârlı": kâr ve CO₂ tek ölçüde; fiyat küçük tutuldu, kâr baskın kalır |
+| Riskli raf ömrü sıralamada en arkada | Daha kârlı ama yolda bozulma riski olan eşleşme önerilmez; kartta rozetle görünür kalır |
+| Rozet "Önerilen Eşleşme" | Karbon düzeltmesiyle ilk sıradaki her zaman en kârlı değil |
 | Elenme özeti yalnız 100 km içi | Diğer şehirlerin alıcıları "mesafe" sayılırsa özet anlamsızlaşır |
 | Görsel `/match`'e tekrar gönderilmez | Eşleştirme yalnızca miktar, konum ve kalite sonucuna ihtiyaç duyar |
 | Harita: WebView + Leaflet + OpenStreetMap | Expo Go/Android'de `react-native-maps` (Google Maps SDK) haritayı hiç çizmedi: `onMapReady` geldi, `onMapLoaded` ve görüntü isteği hiç gelmedi (sunucu üzerinden yapılan teşhisle kanıtlandı). Leaflet WebView içinde çalışır, anahtar gerektirmez; OSM atfı zorunlu, sunucusu yoğun trafik için değildir (demo) |

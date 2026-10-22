@@ -56,7 +56,7 @@ function eliminationText(eliminated: EliminationSummary): string | null {
   return text ? `${text} elendi.` : null;
 }
 
-// Tahmini net iklim etkisi (önerilen eşleşme). Katsayı ve kaynak: server/lib/matching.ts.
+// Tahmini net iklim etkisi (en kârlı eşleşme). Katsayı ve kaynak: server/lib/matching.ts.
 function impactText(netImpactCo2eKg: number): string {
   const amount = Math.abs(netImpactCo2eKg).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
   return netImpactCo2eKg >= 0
@@ -119,7 +119,7 @@ function MatchSection({
                   {impactText(matchState.matches[0].netImpactCo2eKg)}
                 </Text>
                 <Text style={styles.impactNote}>
-                  Önerilen eşleşmeye göre: çöplüğe gitmesi önlenen emisyon (EPA WARM tahmini) −
+                  En kârlı eşleşmeye göre: çöplüğe gitmesi önlenen emisyon (EPA WARM tahmini) −
                   taşıma CO₂
                 </Text>
               </View>

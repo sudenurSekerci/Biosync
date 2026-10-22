@@ -36,18 +36,8 @@ export const HANDLING_DAYS = 1;
 export const AVG_SPEED_KMH = 40;
 export const DRIVING_HOURS_PER_DAY = 8;
 
-/**
- * Raf ömrü, gereken süreyi bu kadar günden az aşıyorsa eşleşme risklidir (shelfLifeRisk):
- * skor yarıya iner ve sıralamada her güvenli eşleşmenin arkasına düşer.
- */
+/** Raf ömrü, gereken süreyi bu kadar günden az aşıyorsa skor yarıya iner (riskli eşleşme). */
 export const SHELF_LIFE_BUFFER_DAYS = 1;
-
-/**
- * Sıralamada taşıma CO₂'sinin parasal karşılığı (TL / kg CO₂). Gerçek bir karbon piyasası fiyatı değildir.
- * Yalnızca sıralamayı etkiler (kâr ve maliyet rakamları değişmez): net kârı birbirine yakın alıcılarda
- * daha az CO₂ salan öne geçer. Örn. panelvanla 1 km fazla yol ≈ 0,5 kg CO₂ ≈ 2 TL ceza.
- */
-export const CARBON_PRICE_TRY_PER_KG = 4;
 
 /**
  * Çöplükten çevrilen her kg organik yan ürün için önlenen emisyon (kg CO₂e / kg). TAHMİNİDİR.
@@ -105,9 +95,8 @@ export function selectVehicle(quantityKg: number): { vehicle: VehicleClass; trip
 /**
  * Saf fonksiyon: aynı girdiye her zaman aynı çıktı, yan etki yok.
  * Eşleşmeleri ve elenen alıcıların sebebe göre sayısını döner.
- * Sıralama: önce raf ömrü güvenli olanlar (shelfLifeRisk false), sonra karbon düzeltmeli değer
- * (netProfitTRY − co2Kg × CARBON_PRICE_TRY_PER_KG) yüksekten düşüğe, eşitlikte mesafe yakından uzağa.
- * score (0-100) yalnızca gösterim içindir: en iyi düzeltilmiş değere oranı, riskliyse yarısı.
+ * Sıralama: netProfit yüksekten düşüğe, eşitlikte co2Kg düşükten yükseğe.
+ * score (0-100) yalnızca gösterim içindir: en iyi net kâra oranı × raf ömrü katsayısı.
  */
 export function evaluateBuyers(
   listing: MatchListing,
@@ -117,7 +106,7 @@ export function evaluateBuyers(
   const eliminated: EliminationSummary = { distance: 0, industry: 0, shelfLife: 0, loss: 0 };
   if (!quality.isOrganicByproduct) return { matches: [], eliminated };
 
-  const candidates: Array<Omit<Match, "score"> & { adjustedValueTRY: number }> = [];
+  const candidates: Array<Omit<Match, "score"> & { freshness: number }> = [];
   // Araç yalnızca miktara bağlı: tüm alıcılar için aynı.
   const { vehicle, trips } = selectVehicle(listing.quantityKg);
 
@@ -139,7 +128,7 @@ export function evaluateBuyers(
       eliminated.shelfLife++;
       continue;
     }
-    const shelfLifeRisk = quality.estimatedShelfLifeDays < requiredDays + SHELF_LIFE_BUFFER_DAYS;
+    const freshness = quality.estimatedShelfLifeDays < requiredDays + SHELF_LIFE_BUFFER_DAYS ? 0.5 : 1;
 
     const transportCostTRY = round(trips * (vehicle.baseFeeTRY + vehicle.costPerKmTRY * distanceKm), 0);
     const materialValueTRY = round(
@@ -164,25 +153,16 @@ export function evaluateBuyers(
       co2Kg,
       netImpactCo2eKg,
       vehicle: { type: vehicle.type, label: vehicle.label, trips },
-      shelfLifeRisk,
-      adjustedValueTRY: netProfitTRY - co2Kg * CARBON_PRICE_TRY_PER_KG,
+      freshness,
     });
   }
 
-  candidates.sort(
-    (a, b) =>
-      Number(a.shelfLifeRisk) - Number(b.shelfLifeRisk) ||
-      b.adjustedValueTRY - a.adjustedValueTRY ||
-      a.distanceKm - b.distanceKm
-  );
+  candidates.sort((a, b) => b.netProfitTRY - a.netProfitTRY || a.co2Kg - b.co2Kg);
 
-  const bestAdjusted = Math.max(0, ...candidates.map((c) => c.adjustedValueTRY));
-  const matches = candidates.map(({ adjustedValueTRY, ...match }) => ({
+  const bestProfit = candidates[0]?.netProfitTRY ?? 0;
+  const matches = candidates.map(({ freshness, ...match }) => ({
     ...match,
-    score:
-      bestAdjusted > 0
-        ? Math.round((Math.max(0, adjustedValueTRY) / bestAdjusted) * 100 * (match.shelfLifeRisk ? 0.5 : 1))
-        : 0,
+    score: bestProfit > 0 ? Math.round((match.netProfitTRY / bestProfit) * 100 * freshness) : 0,
   }));
   return { matches, eliminated };
 }

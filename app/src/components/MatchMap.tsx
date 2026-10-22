@@ -225,7 +225,7 @@ export default function MatchMap({ lat, lng, radiusKm, matches, selectedBuyerId,
       </View>
       <View style={styles.legend}>
         <Text style={[styles.legendItem, { color: COLORS.user }]}>● İlanınız</Text>
-        <Text style={[styles.legendItem, { color: COLORS.best }]}>● Önerilen</Text>
+        <Text style={[styles.legendItem, { color: COLORS.best }]}>● En kârlı</Text>
         <Text style={[styles.legendItem, { color: COLORS.other }]}>● Diğer eşleşmeler</Text>
         <Text style={styles.legendHint}>Noktaya dokunun: alıcı kartı açılır</Text>
       </View>

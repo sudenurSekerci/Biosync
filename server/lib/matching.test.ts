@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { BUYERS } from "../data/buyers.js";
 import {
   AVOIDED_LANDFILL_KG_CO2E_PER_KG,
-  CARBON_PRICE_TRY_PER_KG,
   evaluateBuyers,
   haversineKm,
   MAX_RADIUS_KM,
@@ -79,73 +78,42 @@ test("endüstri kesişmeyen alıcı elenir", () => {
   assert.deepEqual(ids(matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, onlyVeganLeather, BUYERS)), ["ist-2"]);
 });
 
-test("raf ömrü gereken süreden kısaysa elenir, sınırdaysa riskli ve skor yarıya iner", () => {
+test("raf ömrü gereken süreden kısaysa elenir, sınırdaysa skor yarıya iner", () => {
   const expired = { ...goodQuality, estimatedShelfLifeDays: 0 };
   assert.deepEqual(matchBuyers({ quantityKg: 100, ...CITY_POINTS.ank }, expired, BUYERS), []);
 
   const tight = { ...goodQuality, estimatedShelfLifeDays: 1.5 };
   const matches = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ank }, tight, BUYERS);
-  assert.ok(matches.every((m) => m.shelfLifeRisk));
   assert.equal(matches[0].score, 50);
-
-  const safe = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ank }, goodQuality, BUYERS);
-  assert.ok(safe.every((m) => !m.shelfLifeRisk));
 });
 
-const rankBase = { industries: ["kozmetik" as const], pricePerKg: 10, locationName: "test", isFictional: true as const };
-
-test("sıralama: karbon düzeltmeli değer azalan; ilk skor 100", () => {
+test("sıralama: netProfit azalan, eşitlikte co2 artan; ilk skor 100", () => {
+  const base = { industries: ["kozmetik" as const], pricePerKg: 10, locationName: "test", isFictional: true as const };
   // Aynı fiyat; daha uzak alıcı daha az kâr ve daha çok CO₂.
   const buyers: Buyer[] = [
-    { ...rankBase, id: "far", name: "Uzak", lat: 41.2, lng: 29.12 },
-    { ...rankBase, id: "near", name: "Yakın", lat: 41.05, lng: 29.12 },
+    { ...base, id: "far", name: "Uzak", lat: 41.2, lng: 29.12 },
+    { ...base, id: "near", name: "Yakın", lat: 41.05, lng: 29.12 },
   ];
   const matches = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, goodQuality, buyers);
   assert.deepEqual(matches.map((m) => m.buyer.id), ["near", "far"]);
   assert.equal(matches[0].score, 100);
   assert.ok(matches[0].netProfitTRY > matches[1].netProfitTRY);
-});
 
-test("karbon düzeltmesi: biraz daha kârlı ama uzak alıcı geri düşer", () => {
-  const far: Buyer = { ...rankBase, id: "far", name: "Uzak", lat: 41.2, lng: 29.12 };
-  const farMatch = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, goodQuality, [far])[0];
-  const carbonGapTRY = farMatch.co2Kg * CARBON_PRICE_TRY_PER_KG; // yakın alıcı 0 km → CO₂ 0
-  assert.ok(carbonGapTRY > 20);
-  // Yakın alıcının net kârı uzaktakinden 20 TL az: 100 kg × fiyat × 0,9 kalite − 50 TL sefer.
-  const near: Buyer = {
-    ...rankBase,
-    id: "near",
-    name: "Yakın",
-    ...CITY_POINTS.ist,
-    pricePerKg: (farMatch.netProfitTRY - 20 + 50) / 90,
-  };
-  const matches = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, goodQuality, [far, near]);
-  assert.deepEqual(matches.map((m) => m.buyer.id), ["near", "far"]);
-  assert.ok(matches[0].netProfitTRY < matches[1].netProfitTRY);
-});
-
-test("riskli eşleşme, daha kârlı olsa bile güvenli eşleşmenin önüne geçemez", () => {
-  // Raf ömrü 2,05 gün: 0 km'de gereken 1 gün + 1 gün pay → güvenli; ~20 km'de pay yetmez → riskli.
-  const quality = { ...goodQuality, estimatedShelfLifeDays: 2.05 };
-  const buyers: Buyer[] = [
-    { ...rankBase, id: "far-rich", name: "Uzak", lat: 41.2, lng: 29.12, pricePerKg: 30 },
-    { ...rankBase, id: "near", name: "Yakın", ...CITY_POINTS.ist, pricePerKg: 2 },
+  // Eşit net kâr: fiyat farkı mesafe farkını tam dengeliyor → CO₂ düşük olan önde.
+  const tie: Buyer[] = [
+    { ...base, id: "tie-far", name: "A", lat: 41.106, lng: 29.12, pricePerKg: 10 },
+    { ...base, id: "tie-near", name: "B", lat: 41.016, lng: 29.12, pricePerKg: 0 },
   ];
-  const matches = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, quality, buyers);
-  assert.deepEqual(matches.map((m) => [m.buyer.id, m.shelfLifeRisk]), [["near", false], ["far-rich", true]]);
-  assert.ok(matches[1].netProfitTRY > matches[0].netProfitTRY);
-});
-
-test("eşit düzeltilmiş değer: yakın alıcı önde", () => {
-  // 10 km'deki alıcı: net kâr 750, CO₂ 5 kg → düzeltilmiş 750 − 5 × 4 = 730 (tam sayı).
-  // 0 km'deki alıcının fiyatı aynı değeri verecek şekilde: 100 kg × fiyat × 0,9 − 50 TL sefer = 730.
-  const far: Buyer = { ...rankBase, id: "far", name: "Uzak", lat: 41.106, lng: 29.12 };
-  const near: Buyer = { ...rankBase, id: "near", name: "Yakın", ...CITY_POINTS.ist, pricePerKg: 780 / 90 };
-  const matches = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, goodQuality, [far, near]);
-  const adjusted = matches.map((m) => m.netProfitTRY - m.co2Kg * CARBON_PRICE_TRY_PER_KG);
-  assert.equal(adjusted[0], adjusted[1]);
-  assert.deepEqual(matches.map((m) => m.buyer.id), ["near", "far"]);
-  assert.equal(matches[1].score, 100);
+  // tie-near demo noktasında (0 km → taşıma = sabit sefer ücreti 50 TL); fiyatını tie-far'ın
+  // net kârını tutturacak şekilde seç (100 kg × fiyat × 0,9 kalite = net kâr + 50).
+  const farMatch = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, goodQuality, [tie[0]])[0];
+  const pricePerKgForTie = (farMatch.netProfitTRY + 50) / 90;
+  const tieMatches = matchBuyers({ quantityKg: 100, ...CITY_POINTS.ist }, goodQuality, [
+    tie[0],
+    { ...tie[1], pricePerKg: pricePerKgForTie },
+  ]);
+  assert.equal(tieMatches[0].netProfitTRY, tieMatches[1].netProfitTRY);
+  assert.deepEqual(tieMatches.map((m) => m.buyer.id), ["tie-near", "tie-far"]);
 });
 
 test("elenen özeti: sebeplere göre sayılar, yalnız yakın çevredeki (100 km) alıcılar", () => {

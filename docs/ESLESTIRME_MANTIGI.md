@@ -22,8 +22,13 @@ Bir ilan için her alıcı sırayla şu kapılardan geçer. İlk takıldığı k
 | 4 | Raf ömrü, taşıma için gereken süreye yetiyor mu? | **raf ömrü** nedeniyle elendi |
 | 5 | Net kâr > 0 mı? | **zarar** nedeniyle elendi |
 
-Geçen alıcılar sıralanır: **önce net kâr (yüksekten düşüğe), eşitlikte CO₂ (düşükten yükseğe)**.
-İlk sıradaki "En Kârlı Eşleşme" olarak vurgulanır.
+Geçen alıcılar sıralanır (ayrıntı §2.8):
+1. **Raf ömrü güvenli olanlar önce** (`shelfLifeRisk = false`); riskli eşleşme ne kadar kârlı olursa olsun güvenlinin önüne geçemez.
+2. **Karbon düzeltmeli değer** yüksekten düşüğe: `netKâr − co2Kg × CARBON_PRICE_TRY_PER_KG`.
+3. Eşitlikte **mesafe** kısa olan önde.
+
+İlk sıradaki "Önerilen Eşleşme" rozetiyle vurgulanır ("Kâr ve karbon birlikte değerlendirildi").
+En yüksek net kâr başka bir karttaysa o kartta ayrıca küçük bir "Size en çok kalan" etiketi görünür.
 
 `matchBuyers()` yalnızca sıralı eşleşmeleri döner (CLAUDE.md §6 imzası). `evaluateBuyers()` aynı hesabı
 yapar ve ek olarak elenme sayılarını döner; sonuç ekranındaki "2 alıcı zarar nedeniyle, 1 alıcı mesafe
@@ -48,16 +53,17 @@ kısadır (şehir içinde tipik olarak %20-40 daha kısa); demo için bilinçli 
 Önce miktara göre araç seçilir (`selectVehicle`): miktarı **tek seferde taşıyabilen en küçük araç**.
 En büyük aracın kapasitesi aşılırsa kamyon **çoklu sefer** yapar.
 
-| Araç | Kapasite | Sefer ücreti | Araç-km (dönüş dahil) | Emisyon (dönüş dahil) |
-|------|---------:|-------------:|----------------------:|----------------------:|
-| Hafif ticari (panelvan) | 1.000 kg | 50 TL | 10 TL/km | 0,5 kg CO₂/km |
-| Kamyonet | 3.500 kg | 150 TL | 16 TL/km | 0,8 kg CO₂/km |
-| Kamyon | 12.000 kg | 400 TL | 26 TL/km | 1,6 kg CO₂/km |
+| Araç | Kapasite | Sefer ücreti | Araç-km (tek yön) | Emisyon (tek yön) |
+|------|---------:|-------------:|------------------:|------------------:|
+| Hafif ticari (panelvan) | 1.000 kg | 50 TL | 5 TL/km | 0,25 kg CO₂/km |
+| Kamyonet | 3.500 kg | 150 TL | 8 TL/km | 0,4 kg CO₂/km |
+| Kamyon | 12.000 kg | 400 TL | 13 TL/km | 0,8 kg CO₂/km |
 
 ```
 sefer          = 1                                   (miktar ≤ seçilen aracın kapasitesi)
                = ⌈miktar / 12.000⌉                   (miktar > 12.000 kg, kamyon)
-taşımaMaliyeti = sefer × (seferÜcreti + araçKm × d)
+gidilenKm      = d × EMPTY_RETURN_FACTOR             (EMPTY_RETURN_FACTOR = 2: boş dönüş)
+taşımaMaliyeti = sefer × (seferÜcreti + araçKm × gidilenKm)      (buyerOwn: alıcı teslim alır)
 ```
 
 **Neden ton-km değil araç bazlı?** Küçük partiler tek bir araçla taşınır; araç yarı boş da gitse yakıt
@@ -67,37 +73,74 @@ ve şoför maliyeti aynıdır. Ton-km modeli küçük miktarlarda taşımayı ne
 
 - **Sabit sefer ücreti:** araç çağırma, yükleme/boşaltma, şoför zamanı. Mesafeden bağımsız olduğu için
   küçük partilerde belirleyicidir.
-- **Araç-km:** yakıt + aşınma, **dönüş yolu dahil** (tek yön değerin ×2'si). Tek yön mesafe ile çarpılır.
+- **Araç-km:** yakıt + aşınma, tek yön değer. **Boş dönüş** (dönüş yükü yok) `EMPTY_RETURN_FACTOR` ile her iki taşıma
+  modunda eklenir. Faz A2 notu: eski tablo "dönüş dahil" 10 / 16 / 26 TL/km ve 0,5 / 0,8 / 1,6 kg/km idi; değerler
+  tek yöne bölünüp × 2 açıkça yazıldı. "Alıcı teslim alır" (`buyerOwn`) maliyetleri ve CO₂ **sayısal olarak değişmedi**.
 - 1.000 kg'a kadar her şey hafif ticari araçla hesaplanır; bu belgedeki 100 kg / 15 kg örnekleri bu yüzden
   değişmedi.
 - Kartta "Araç" satırı seçilen aracı (ve 1'den fazlaysa sefer sayısını) gösterir.
 
-### 2.3 Malzeme değeri
+### 2.2b Taşıma modu: 3. parti taşıyıcı (Faz A2)
+
+`transportMode`: `buyerOwn` (varsayılan, alıcının kendi aracı) | `thirdParty` (taşıyıcı firma). Maliyeti her iki
+modda alıcı öder; net kâr ve "zarar → elenir" kuralı aynıdır. Taşıyıcı ayrı kullanıcı rolü değildir.
+
+```
+seferBaşı      = max( CARRIER_MIN_FEE_TRY, (CARRIER_FIXED_FEE_TRY + araçKm × d × EMPTY_RETURN_FACTOR) × (1 + CARRIER_MARGIN) )
+taşımaMaliyeti = sefer × seferBaşı
+taşıyıcıPayı   = sefer × (seferBaşı − (CARRIER_FIXED_FEE_TRY + araçKm × d × EMPTY_RETURN_FACTOR))   (carrierShareTRY)
+```
+
+| Sabit (demo) | Değer | Anlamı |
+|-------|------:|--------|
+| `CARRIER_FIXED_FEE_TRY` | 150 TL | Taşıyıcının sabit sefer ücreti (araç sınıfından bağımsız) |
+| `CARRIER_MARGIN` | 0,25 | Taşıyıcı kâr payı |
+| `CARRIER_MIN_FEE_TRY` | 300 TL | Kısa mesafe asgari sefer ücreti (panelvanla ~9 km'ye kadar devrede) |
+
+- CO₂ iki modda aynıdır (aynı araç, aynı boş dönüş).
+- **Aracı olmayan alıcı** (`hasOwnVehicle: false`): "Alıcı teslim alır" mümkün değildir. Bu görünümde alıcı
+  elenmez; taşıyıcı maliyetiyle hesaplanır (`transportMode: "thirdParty"`) ve sıralama/"Önerilen" bu rakamla
+  yapılır. Taşıyıcıyla zarar ediyorsa normal "zarar" kuralıyla elenir. Kartta "Aracı yok – yalnızca taşıyıcı
+  ile" etiketi; detayda yalnızca taşıyıcı maliyeti.
+- `carrierShareTRY` = taşıyıcının kâr payı + asgari ücret tamamlaması; kendi araçta 0.
+- Küçük partilerde asgari ücret belirleyicidir: Ankara 15 kg'da ODTÜ alıcısı kendi araçla +56 TL kârlı, taşıyıcıyla
+  300 TL > 176 TL değer → zarar, elenir.
+- Sonuç ekranında liste üstünde "Alıcı teslim alır / Taşıyıcı firma" seçimi; kart detayında iki modun taşıma maliyeti ve
+  net kârı yan yana. `POST /match` iki modu tek yanıtta döner (`byMode`).
+
+### 2.3 Malzeme değeri (alıcı teslim fiyatı)
 
 ```
 malzemeDeğeri = miktarKg × alıcı.pricePerKg × (qualityScore / 100)
 ```
 
+`pricePerKg`, alıcının malzemeyi **kendi tesisine teslim edilmiş** hâliyle ödemeye razı olduğu fiyattır.
+Ekranda "Alıcı teslim fiyatı" olarak gösterilir; alıcının toplam harcaması budur.
+
 Kalite puanı fiyatı doğrudan ölçekler: 90 puanlık ürün liste fiyatının %90'ını alır. Alıcı fiyatları
 2-15 TL/kg aralığında seçildi.
 
-### 2.4 Net kâr
+### 2.4 Net kâr (satıcıya kalan)
 
 ```
 netKâr = malzemeDeğeri − taşımaMaliyeti        netKâr ≤ 0 → eşleşme yok
 ```
+
+Taşımayı alıcı ayarlar ve öder, ama tutarı teslim fiyatından düşer. Bu yüzden `netProfitTRY` **satıcının
+cebine giren** tutardır; ekranda "Size kalan (net)". Net ≤ 0 ise alıcının satıcıya ödeyebileceği bir şey
+kalmaz ve eşleşme olmaz. Taşıyıcı firma pahalıysa düşen tutar satıcının payıdır.
 
 Para değerleri tam TL'ye yuvarlanır.
 
 ### 2.5 CO₂ – araç-km bazlı
 
 ```
-co2Kg = sefer × d × aracınEmisyonu        (hafif ticari: d × 0,5 kg/km)
+co2Kg = sefer × d × EMPTY_RETURN_FACTOR × aracınEmisyonu        (hafif ticari: d × 2 × 0,25 kg/km)
 ```
 
 Yaklaşık tek yön değerler (demo varsayımı): panelvan ≈0,25, kamyonet ≈0,4, kamyon ≈0,8 kg CO₂/km;
-dönüş dahil ×2. Taşınan kilogramla doğrudan orantılı değildir; seçilen araca ve sefer sayısına bağlıdır.
-Kartta "Taşıma CO₂" olarak gösterilir; sıralamada eşitlik bozucudur.
+boş dönüş her iki taşıma modunda × 2 olarak eklenir. Taşınan kilogramla doğrudan orantılı değildir; seçilen araca ve sefer sayısına bağlıdır.
+Kartta "Taşıma CO₂" olarak gösterilir; sıralamada karbon fiyatıyla paraya çevrilerek kullanılır (§2.8).
 
 ### 2.5b Net iklim etkisi (tahmini)
 
@@ -112,7 +155,7 @@ netİklimEtkisi        = önlenenÇöplükEmisyonu − co2Kg                    
 - **Dönüşüm:** 1 kısa ton = 0,90718474 metrik ton → 0,54 / 0,90718474 ≈ **0,595 kg CO₂e / kg**.
 - **Varsayımlar:** ABD ortalama çöplük gazı toplama koşulları (Türkiye'de farklı olabilir); alıcının işleme
   emisyonu dahil değildir. Bu yüzden ekranda **"tahmini"** yazılır.
-- Her eşleşme için `netImpactCo2eKg` olarak hesaplanır; sonuç ekranında **en kârlı eşleşmenin** değeri gösterilir.
+- Her eşleşme için `netImpactCo2eKg` olarak hesaplanır; sonuç ekranında **önerilen (ilk) eşleşmenin** değeri gösterilir.
 - Örnek: İstanbul, 100 kg, İTÜ Arı Teknokent → 100 × 0,595 = 59,5 kg önlenir − 6,5 kg taşıma = **≈53 kg CO₂e tasarruf**.
 
 ### 2.6 Raf ömrü kuralı
@@ -123,7 +166,9 @@ gerekenGün = HANDLING_DAYS + d / (AVG_SPEED_KMH × DRIVING_HOURS_PER_DAY)
 ```
 
 - `estimatedShelfLifeDays < gerekenGün` → **elenir** (ürün yolda bozulur).
-- `estimatedShelfLifeDays < gerekenGün + 1 gün` (`SHELF_LIFE_BUFFER_DAYS`) → eşleşir ama **skor yarıya iner** (riskli).
+- `estimatedShelfLifeDays < gerekenGün + 1 gün` (`SHELF_LIFE_BUFFER_DAYS`) → eşleşir ama **riskli** sayılır
+  (`shelfLifeRisk = true`): skor yarıya iner, sıralamada tüm güvenli eşleşmelerin arkasına düşer ve kartta
+  "Raf ömrü sınırda" rozeti görünür.
 
 50 km yarıçap içinde yol süresi en fazla ~0,16 gündür; yani pratikte kural "raf ömrü ~1,2 günden kısaysa
 ele, ~2,2 günden kısaysa riskli say" demektir.
@@ -131,17 +176,40 @@ ele, ~2,2 günden kısaysa riskli say" demektir.
 ### 2.7 Skor (0-100, yalnızca gösterim)
 
 ```
-skor = round( netKâr / enİyiNetKâr × 100 × tazelikKatsayısı )      tazelikKatsayısı ∈ {1; 0,5}
+skor = max(0, round( düzeltilmişDeğer / enİyiDüzeltilmişDeğer × 100 × tazelikKatsayısı ))
+tazelikKatsayısı = 0,5 (shelfLifeRisk) | 1
 ```
 
-İlk eşleşme her zaman 100'dür (riskli değilse). **Skor sıralamayı değiştirmez**; sıralama §1'deki kurala göredir.
+Güvenli eşleşmeler arasında ilk sıradaki genellikle 100'dür. Ayrı bir puan alanı yoktur; karbon ve raf ömrü
+cezası mevcut `score`'a yansır. **Skor sıralamayı değiştirmez**; sıralama §2.8'e göredir.
+
+### 2.8 Karbon düzeltmeli sıralama
+
+```
+düzeltilmişDeğer = round( netKâr − co2Kg × CARBON_PRICE_TRY_PER_KG )      (TL)
+sıralama: shelfLifeRisk (false önce) → düzeltilmişDeğer (azalan) → mesafe (artan)
+```
+
+- **`CARBON_PRICE_TRY_PER_KG` ≈ 4,77 TL / kg CO₂ (demo varsayımı).** Türkiye'de bu taşımaya uygulanan bir
+  karbon fiyatı yoktur; referans olarak AB ETS fiyatı TL'ye çevrildi:
+  - AB ETS (EUA) birincil piyasa ihale fiyatı: **85,89 € / t CO₂**, 23.10.2026, EEX "Auction 4. Period DE"
+    (birincil kaynak: [EEX Emission Spot Primary Market Auction Report 2026](https://public.eex-group.com/eex/eua-auction-report/emission-spot-primary-market-auction-report-2026-data.xlsx), 25 Ekim 2026'da erişildi).
+    İkincil kontrol: aynı gün ikincil piyasa uzlaşması 85,92 €/t
+    ([Purely Energy – EU ETS](https://www.purelyenergy.co.uk/tools/carbon/eu-ets)); sonuç değişmez.
+  - EUR/TRY: **55,4997 TL**, TCMB gösterge döviz alış kuru, 23.10.2026, bülten 2026/201
+    ([TCMB XML](https://www.tcmb.gov.tr/kurlar/202610/23102026.xml)).
+  - 85,89 × 55,4997 / 1000 ≈ **4,77 TL / kg**.
+- Karbon fiyatı **yalnızca sıralamada** kullanılır; kartta gösterilen net kâr değişmez. Bu yüzden önerilen
+  eşleşme her zaman en yüksek net kârlı eşleşme olmayabilir (PDR §2: "en düşük karbon ayak iziyle en kârlı").
+- Örnek: 100 kg, panelvan. 20 km uzaktaki alıcı 10,2 kg CO₂ → ≈49 TL karbon maliyeti. Yakındaki (0 km) alıcının
+  net kârı 49 TL'den az farkla düşükse, yakındaki alıcı öne geçer.
 
 ---
 
 ## 3. Başabaş noktası (en kullanışlı sezgi)
 
-Net kârın sıfır olduğu yerden (hafif ticari araç, miktar ≤ 1.000 kg; daha büyük araçta 50 ve 10 yerine
-o aracın sefer ücreti ve araç-km değeri, çoklu seferde ayrıca × sefer):
+Net kârın sıfır olduğu yerden (alıcı teslim alır, hafif ticari, miktar ≤ 1.000 kg; 10 = 5 TL/km × 2 boş dönüş; daha büyük
+araçta 50 ve 10 yerine o aracın sefer ücreti ve 2 × araç-km değeri, çoklu seferde ayrıca × sefer):
 
 ```
 Bir alıcının kârlı olabileceği en uzak mesafe:   d_maks = (miktar × fiyat × kalite/100 − 50) / 10
@@ -182,18 +250,21 @@ Her şehirde 4 alıcı vardır; şehir merkezindeki demo noktasına göre:
 
 ### Demo noktalarından mesafeler (100 kg / 15 kg, kalite 90)
 
+Net kâr sütunları "Alıcı teslim alır" görünümüdür. Her şehrin 2. kârlı alıcısının aracı yoktur
+(`hasOwnVehicle: false`, * ile işaretli); onlar bu görünümde de taşıyıcı maliyetiyle hesaplanır.
+
 | Alıcı | Konum | Mesafe | Fiyat | Net kâr 100 kg | Net kâr 15 kg |
 |-------|-------|-------:|------:|---------------:|--------------:|
 | ist-1 Kabuktan Polimer Ar-Ge | İTÜ Arı Teknokent | 12,9 km | 12 | +901 | −17 |
-| ist-2 Liflen Vegan Deri | Tuzla Deri OSB | 23,2 km | 9 | +528 | −161 |
+| ist-2 Liflen Vegan Deri * | Tuzla Deri OSB | 23,2 km | 9 | +332 | zarar |
 | ist-3 Marmara Lif | Dilovası OSB | 43,3 km | 2 | −303 | −456 |
 | ist-4 Trakya Doğal Kozmetik | Silivri | 73,5 km | 14 | yarıçap dışı | yarıçap dışı |
-| ank-1 Bozkır Biyoaktif | ODTÜ Teknokent | 7,0 km | 13 | +1.050 | +55 |
-| ank-2 Başkent Biyomalzeme | Sincan OSB | 25,5 km | 8 | +415 | −197 |
+| ank-1 Bozkır Biyoaktif | ODTÜ Teknokent | 7,0 km | 13 | +1.050 | +56 |
+| ank-2 Başkent Biyomalzeme * | Sincan OSB | 25,5 km | 8 | +214 | zarar |
 | ank-3 Anadolu Filament | Başkent OSB, Malıköy | 44,2 km | 2,5 | −267 | −458 |
 | ank-4 Polatlı Tarım Biyotek. | Polatlı OSB | 71,1 km | 15 | yarıçap dışı | yarıçap dışı |
-| ayt-1 Akdeniz Narenciye | Antalya Teknokent | 5,0 km | 11 | +890 | +48 |
-| ayt-2 Toros Yeşil Polimer | Antalya OSB | 12,1 km | 10 | +729 | −36 |
+| ayt-1 Akdeniz Narenciye | Antalya Teknokent | 5,0 km | 11 | +890 | +49 |
+| ayt-2 Toros Yeşil Polimer * | Antalya OSB | 12,1 km | 10 | +561 | zarar |
 | ayt-3 Serik Lif ve Deri | Serik | 35,3 km | 2 | −223 | −376 |
 | ayt-4 Manavgat Doğal Özler | Manavgat OSB | 64,5 km | 14 | yarıçap dışı | yarıçap dışı |
 
@@ -209,13 +280,27 @@ Her şehirde 4 alıcı vardır; şehir merkezindeki demo noktasına göre:
 
 ## 5. Uçtan uca örnek: İstanbul, 100 kg, kalite 90, tüm endüstriler uygun
 
-| Alıcı | d | Taşıma = 50 + 10·d | Değer = 100 · fiyat · 0,9 | Net kâr | CO₂ = 0,5·d | Skor | Sonuç |
-|-------|---:|---:|---:|---:|---:|---:|---|
-| İTÜ Arı Teknokent | 12,9 | 179 | 1.080 | **901** | 6,5 | 100 | 1. (En Kârlı) |
-| Tuzla Deri OSB | 23,2 | 282 | 810 | **528** | 11,6 | 59 | 2. |
-| Dilovası OSB | 43,3 | 483 | 180 | −303 | – | – | zarar → elendi |
-| Silivri | 73,5 | – | – | – | – | – | mesafe → elendi |
-| Ankara/Antalya alıcıları | >100 | – | – | – | – | – | bölge dışı (özete girmez) |
+| Alıcı | d | Taşıma = 50 + 10·d | Değer = 100 · fiyat · 0,9 | Net kâr | CO₂ = 0,5·d | Düzeltilmiş = net − CO₂ × 4,77 | Skor | Sonuç |
+|-------|---:|---:|---:|---:|---:|---:|---:|---|
+| İTÜ Arı Teknokent | 12,9 | 179 | 1.080 | **901** | 6,5 | 870 | 100 | 1. (Önerilen) |
+| Tuzla Deri OSB (aracı yok → taşıyıcı) | 23,2 | 478 ¹ | 810 | **332** | 11,6 | 277 | 32 | 2. |
+| Dilovası OSB | 43,3 | 483 | 180 | −303 | – | – | – | zarar → elendi |
+| Silivri | 73,5 | – | – | – | – | – | – | mesafe → elendi |
+| Ankara/Antalya alıcıları | >100 | – | – | – | – | – | – | bölge dışı (özete girmez) |
+
+¹ Tuzla alıcısının aracı olmadığı için "Alıcı teslim alır" görünümünde de taşıyıcı formülü: (150 + 10 × 23,2) × 1,25.
+
+Bu örnekte önerilen eşleşme aynı zamanda en yüksek net kârlıdır; "Size en çok kalan" etiketi görünmez.
+
+**Aynı ilan, taşıyıcı firma (`thirdParty`):**
+
+| Alıcı | Taşıma = max(300, (150 + 10·d) × 1,25) | Net kâr | "Alıcı teslim alır"a göre | Skor | Sonuç |
+|-------|---:|---:|---:|---:|---|
+| İTÜ Arı Teknokent | 349 | **731** | −170 | 100 | 1. (Önerilen) |
+| Tuzla Deri OSB | 478 | **332** | 0 (zaten taşıyıcı) | 40 | 2. |
+| Dilovası OSB | 729 | −549 | – | – | zarar → elendi |
+
+Sıra iki modda aynıdır; taşıyıcı yalnızca maliyeti artırır.
 
 Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."**
 
@@ -229,9 +314,12 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 | `NEARBY_CONTEXT_KM` | 100 | Elenme özetine girecek en uzak alıcı |
 | `VEHICLE_CLASSES` | 3 sınıf | Kapasite, sefer ücreti, araç-km maliyeti ve emisyon (bkz. §2.2 tablosu) |
 | `AVOIDED_LANDFILL_KG_CO2E_PER_KG` | ≈0,595 | Çöplükten çevrilen kg başına önlenen emisyon (EPA WARM v15) |
+| `EMPTY_RETURN_FACTOR` | 2 | Boş dönüş: gidilen araç-km = tek yön × 2 (her iki modda) |
+| `CARRIER_FIXED_FEE_TRY` / `CARRIER_MARGIN` / `CARRIER_MIN_FEE_TRY` | 150 / 0,25 / 300 | 3. parti taşıyıcı (§2.2b) |
+| `CARBON_PRICE_TRY_PER_KG` | ≈4,77 | Sıralamada taşıma CO₂'sinin TL karşılığı (EEX EUA ihalesi 23.10.2026 × TCMB kuru, §2.8) |
 | `HANDLING_DAYS` | 1 | Toplama + işleme süresi (gün) |
 | `AVG_SPEED_KMH` × `DRIVING_HOURS_PER_DAY` | 40 × 8 | Günlük yol kapasitesi = 320 km |
-| `SHELF_LIFE_BUFFER_DAYS` | 1 | Bu paydan az kalırsa skor yarıya iner |
+| `SHELF_LIFE_BUFFER_DAYS` | 1 | Bu paydan az kalırsa riskli: skor yarıya iner, sıralamada güvenlilerin arkasında |
 
 `MAX_RADIUS_KM` mobilde ayrıca tanımlanmaz; `POST /match` yanıtındaki `radiusKm` ile gelir.
 
@@ -244,10 +332,14 @@ Ekrandaki özet: **"1 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi
 | Araç bazlı taşıma (ton-km yerine) | Küçük partilerde gerçek maliyet araçtır; PDR'daki "taşıma > atık değeri" riskini görünür kılar |
 | Araç sınıfı + kapasite (Faz B) | En küçük uygun araç seçilir, 12 t üstü çoklu kamyon seferi; büyük partilerde tek panelvan varsayımı kalkar. 1 t'a kadar sonuçlar değişmez |
 | Sabit sefer ücreti | 10-20 kg'lık ilanlarda uzak alıcıların doğal olarak zarara düşmesi |
+| Boş dönüş iki modda da (Faz A2) | Alıcının kendi aracı da boş döner; yalnız taşıyıcıda saymak iki modu haksız kıyaslardı. Eski "dönüş dahil" sabitler tek yöne bölündü, kendi araç rakamları değişmedi |
+| Taşıyıcı asgari ücreti (Faz A2) | Kısa mesafede taşıyıcı gerçekte sefer başı en az bir ücret ister; küçük partilerde kendi aracı avantajını görünür kılar |
 | Kuş uçuşu (Haversine) | Ek servis/anahtar gerektirmez; demo için yeterli |
 | Organik değilse hiç eşleştirme yok | AI "tarımsal yan ürün değil" dediyse alıcı aramak anlamsız |
 | AI en fazla 3 endüstri önerir, sıralı | Her ürüne her endüstri uygun görünmesin; eşleşme anlamlı kalsın |
-| Skor sıralamayı değiştirmez | CLAUDE.md §6: sıralama net kâr, eşitlikte CO₂ |
+| Karbon düzeltmeli sıralama (Faz A) | PDR §2 "en düşük karbon ayak iziyle en kârlı": CO₂ yalnız eşitlik bozucuyken sıralamaya pratikte etkisi yoktu. Fiyat AB ETS referanslı demo varsayımı; net kâr gösterimi değişmez |
+| Riskli raf ömrü güvenlinin önüne geçemez (Faz A) | Yolda bozulma riski kârla telafi edilmez; skorun yarıya inmesi tek başına sıralamayı değiştirmiyordu |
+| Skor sıralamayı değiştirmez | Ayrı puan alanı yok; sıralama §2.8'deki kurala göre |
 | Elenme özeti yalnız 100 km içi | Diğer şehirlerin alıcıları "mesafe" sayılırsa özet anlamsızlaşır |
 | Görsel `/match`'e tekrar gönderilmez | Eşleştirme yalnızca miktar, konum ve kalite sonucuna ihtiyaç duyar |
 | Harita: WebView + Leaflet + OpenStreetMap | Expo Go/Android'de `react-native-maps` (Google Maps SDK) haritayı hiç çizmedi: `onMapReady` geldi, `onMapLoaded` ve görüntü isteği hiç gelmedi (sunucu üzerinden yapılan teşhisle kanıtlandı). Leaflet WebView içinde çalışır, anahtar gerektirmez; OSM atfı zorunlu, sunucusu yoğun trafik için değildir (demo) |

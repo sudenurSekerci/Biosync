@@ -1,4 +1,4 @@
-Yol haritası: @docs/YOL_HARITASI.md
+Aktif plan: @docs/ROADMAP.md
 
 # BioSync – Cursor Kuralları (PDR'a sadık)
 
@@ -19,9 +19,10 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 
 **Fark (PDR §4):** Hedef downcycling (enerji/yem) değil **upcycling**. Eşleşme hedefleri yeni nesil biyomateryal/kozmetik tesisleridir; biyogaz/yem tesisi eşleştirme.
 
-## 2. Prototip Kapsamı (Task 3)
-**Yapılacak:** (a) ilan formu, (b) AI kalite değerlemesi (gerçek çalışır), (c) lokal eşleştirme + harita (alıcılar mock).
-**Yapılmayacak:** Auth, ödeme, veritabanı, push bildirim, çoklu dil, admin paneli, sohbet/mesajlaşma, gerçek alıcı onboarding. İstenmeden ekleme.
+## 2. Kapsam
+**Tamamlanan prototip:** (a) ilan formu, (b) AI kalite değerlemesi (gerçek çalışır), (c) lokal eşleştirme + harita.
+**Sıradaki kapsam:** yalnızca [docs/ROADMAP.md](docs/ROADMAP.md)'deki fazlar (Firestore, Firebase Auth + roller, paneller, puanlama, yol rotası dahil). Bu dosyadaki bir kural ROADMAP'teki aktif fazla çelişiyorsa ROADMAP geçerlidir ve ilgili kural o fazda burada güncellenir.
+**Yapılmayacak:** Ödeme, push bildirim, çoklu dil, sohbet/mesajlaşma ve ROADMAP'te olmayan her şey. İstenmeden ekleme.
 
 ## 3. Teknoloji (sabit, değiştirme)
 - **Mobil:** React Native + **Expo (managed, Expo Go ile çalışmalı)** + **TypeScript**
@@ -37,7 +38,7 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
 - **Görsel dil:** Logo yalnızca yazı (`Wordmark`, "Bio" yeşil + "Sync" koyu; ikon/maskot yok). Yazı ölçeği 12/13/14/15/16/20/22 (puan 64); sayfa başlığı 22, bölüm başlığı 15 kalın, kenar boşluğu 20. Puan ölçeği: ≥80 Yüksek, ≥60 İyi, ≥40 Orta, <40 Düşük (renk + metin).
 - **Bilgi/kaynak kuralı:** Ekranda gösterilen her olgusal bilgi `docs/KAYNAKLAR.md`'de birebir alıntı + sayfa ile kayıtlı olmalı; doğrulanamayan bilgi eklenmez.
 - **Yerleşim:** `react-native-safe-area-context` (`SafeAreaProvider` + `SafeAreaView`, tüm kenarlar; sabit `paddingTop` yok). Geniş ekranda (web) içerik ortada en fazla 480 px sütun, kenarlar nötr gri (`#eef0f2`); dar ekranda tam genişlik.
-- **Canlı:** Vercel, iki ayrı proje: `server` (Express zero-config, `export default app`, `VERCEL` varken `listen` yok; ESM olduğu için göreli import'lar `.js` uzantılı) ve `app` (`app/vercel.json`: `npx expo export -p web` → `dist`). Ortam değişkenleri: server'da `GEMINI_API_KEY`, `GEMINI_MODEL`, `CORS_ORIGINS`; app'te `EXPO_PUBLIC_API_URL`. CORS paket kullanmadan `server/index.ts` içinde.
+- **Canlı:** Vercel, iki ayrı proje: `server` (Express zero-config, `export default app`, `VERCEL` varken `listen` yok; ESM olduğu için göreli import'lar `.js` uzantılı) ve `app` (`app/vercel.json`: `npx expo export -p web` → `dist`). İki `vercel.json`'da `git.deploymentEnabled.dev = false`: `dev` dalı deploy edilmez. Ortam değişkenleri: server'da `GEMINI_API_KEY`, `GEMINI_MODEL`, `CORS_ORIGINS`; app'te `EXPO_PUBLIC_API_URL`. CORS paket kullanmadan `server/index.ts` içinde.
   - `server/tsconfig.json`'daki `"typeRoots": ["./node_modules/@types"]` **silinmez**: Vercel, TS'yi `/tmp` altında bizim tsconfig'i `extends` eden geçici bir config ile derler; açık `typeRoots` yoksa `types: ["node"]` bulunamaz (TS2688, derleme durur). Değişiklikten önce `npx vercel build --yes` ile yerelde denenebilir.
 - **State:** React `useState` / `useReducer`. Navigasyon kütüphanesi YOK; tek ekranda `step` state'i ile koşullu render.
 - **Veri:** Alıcılar `server/data/buyers.ts` (veya `.json`) içinde statik mock.
@@ -69,10 +70,12 @@ BioSync, üretim/lojistikte elde kalan **temiz tarımsal yan ürünleri** (meyve
   lib/schema.ts     (zod şemaları + türetilmiş tipler; tek kaynak)
   data/buyers.ts
   .env.example
+  vercel.json       (yalnızca dev dalı deploy kapatma)
 /docs
   ESLESTIRME_MANTIGI.md   (eşleştirme formülleri, sabitler, kararlar)
   KAYNAKLAR.md            (ekrandaki bilgilerin ve medyanın kaynakları)
-  YOL_HARITASI.md         (teslim günü planı)
+  ROADMAP.md              (aktif plan; CLAUDE.md'den otomatik yüklenir)
+  archive/                (bitmiş planlar; otomatik yüklenmez)
   gorseller/              (README ekran görüntüleri)
 CLAUDE.md, README.md      (kökte kalır: CLAUDE.md yalnızca kökten otomatik yüklenir)
 ```
@@ -96,13 +99,18 @@ type QualityResult = {
 };
 
 type Buyer = { id: string; name: string; industries: Industry[]; lat: number; lng: number; pricePerKg: number;
-  locationName: string; isFictional: true };   // locationName: gerçek bölge adı; alıcı kurgusal
+  locationName: string; hasOwnVehicle: boolean; isFictional: true };   // locationName: gerçek bölge adı; alıcı kurgusal
+
+type TransportMode = "buyerOwn" | "thirdParty";   // alıcının kendi aracı | 3. parti taşıyıcı
 
 type Match = {
-  buyer: Buyer; distanceKm: number; transportCostTRY: number;
+  buyer: Buyer; distanceKm: number;
+  transportMode: TransportMode; transportCostTRY: number;
+  carrierShareTRY: number;   // taşıyıcı payı (kâr payı + asgari ücret tamamlaması); buyerOwn'da 0
   materialValueTRY: number; netProfitTRY: number; co2Kg: number;
   netImpactCo2eKg: number;   // tahmini: miktar × önlenen çöplük emisyonu − co2Kg (pozitif = tasarruf)
   vehicle: { type: "hafif_ticari" | "kamyonet" | "kamyon"; label: string; trips: number };
+  shelfLifeRisk: boolean;    // raf ömrü sınırda: skor yarıya iner, sıralamada güvenlilerin arkasında
   score: number;
 };
 ```
@@ -112,19 +120,26 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLEST
 
 - Mesafe: **Haversine**, km.
 - `MAX_RADIUS_KM` sabiti (varsayılan 50) tek yerde tanımlı; bunu aşan alıcı **listeye girmez**.
-- Taşıma **araç bazlı, kapasiteli**: `selectVehicle(quantityKg)` miktarı taşıyabilen en küçük aracı seçer (`VEHICLE_CLASSES`: hafif ticari 1 t / kamyonet 3,5 t / kamyon 12 t); 12 t üstü çoklu kamyon seferi. `transportCost = trips * (baseFeeTRY + costPerKmTRY * distanceKm)`
+- Taşıma **araç bazlı, kapasiteli**: `selectVehicle(quantityKg)` miktarı taşıyabilen en küçük aracı seçer (`VEHICLE_CLASSES`: hafif ticari 1 t / kamyonet 3,5 t / kamyon 12 t); 12 t üstü çoklu kamyon seferi. Boş dönüş **her iki modda** sayılır: araç-km = `distanceKm * EMPTY_RETURN_FACTOR` (2).
+  - `buyerOwn` (varsayılan): `transportCost = trips * (baseFeeTRY + costPerKmTRY * distanceKm * EMPTY_RETURN_FACTOR)`
+  - `thirdParty`: `transportCost = trips * max(CARRIER_MIN_FEE_TRY, (CARRIER_FIXED_FEE_TRY + costPerKmTRY * distanceKm * EMPTY_RETURN_FACTOR) * (1 + CARRIER_MARGIN))`; sabitler 150 TL / %25 / asgari 300 TL. `carrierShareTRY` = maliyetin sabit ücret + araç-km dışındaki kısmı.
+  - Maliyeti her iki modda alıcı öder; zarar eden alıcı eleme kuralı iki modda da geçerli. Taşıyıcı ayrı kullanıcı rolü değildir.
+  - `buyer.hasOwnVehicle === false` ise "Alıcı teslim alır" görünümünde alıcı elenmez; mümkün olan tek mod `thirdParty` ile hesaplanır (sonuçta `transportMode: "thirdParty"`), sıralama ve "Önerilen" bu rakamla. Kartta "Aracı yok – yalnızca taşıyıcı ile" etiketi; detayda yalnızca taşıyıcı maliyeti.
 - `materialValue = quantityKg * buyer.pricePerKg * (qualityScore/100)`
 - `netProfit = materialValue - transportCost`; `netProfit <= 0` ise eşleşme yok.
-- `co2Kg = trips * distanceKm * emissionKgPerKm` (seçilen aracın araç-km emisyonu).
-- `netImpactCo2eKg = quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg`. Katsayı ≈0,595 kg CO₂e/kg, kaynak EPA WARM v15 (Tablo 1, "Fruits and Vegetables" 0,54 MTCO2E/kısa ton); kaynak `lib/matching.ts`'te yazılı. Ekranda **"tahmini"** ibaresiyle, en kârlı eşleşme için tek satır gösterilir. Kaynaksız katsayı eklenmez.
-- Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: araç sınıfları (hafif ticari: 50 TL sefer, 10 TL/km, 0,5 kg CO₂/km; kamyonet: 150 / 16 / 0,8; kamyon: 400 / 26 / 1,6; dönüş dahil). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır. Kartta "Araç" satırı.
-- Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `score` yarıya iner.
-- `score` (0-100) yalnız gösterim: en iyi net kâra oran × raf ömrü katsayısı; sıralamayı değiştirmez.
-- `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, matches, eliminated }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir). `eliminated` = sebebe göre elenen alıcı sayıları (`distance`, `industry`, `shelfLife`, `loss`); `evaluateBuyers` üretir, `matchBuyers` onun `matches` kısmını döner. Özete yalnızca `NEARBY_CONTEXT_KM` (100 km) içindeki alıcılar girer; sonuç ekranında tek satır: "2 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."
-- Alıcılar (`data/buyers.ts`): İstanbul/Ankara/Antalya, şehir başına 4 **kurgusal** alıcı (2 kârlı, 1 zarar eden, 1 yarıçap dışı); gerçek sanayi bölgesi/teknopark konumları. Kurgusal oldukları kodda ve kartta yazılı. Davranış `lib/matching.test.ts` (`npm test`) ile doğrulanır.
+  - Anlamı: `pricePerKg` alıcının **tesise teslim** fiyatıdır. Taşımayı alıcı ayarlar/öder ve bu fiyattan düşer; `netProfitTRY` **satıcıya kalan** tutardır, alıcının toplam harcaması `materialValueTRY`'dir. Ekranda: "Alıcı teslim fiyatı", "Taşıma (teslim fiyatından düşülür)", "Size kalan (net)".
+- `co2Kg = trips * distanceKm * EMPTY_RETURN_FACTOR * emissionKgPerKm` (seçilen aracın tek yön araç-km emisyonu; iki modda aynı).
+- `netImpactCo2eKg = quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg`. Katsayı ≈0,595 kg CO₂e/kg, kaynak EPA WARM v15 (Tablo 1, "Fruits and Vegetables" 0,54 MTCO2E/kısa ton); kaynak `lib/matching.ts`'te yazılı. Ekranda **"tahmini"** ibaresiyle, önerilen (ilk) eşleşme için tek satır gösterilir. Kaynaksız katsayı eklenmez.
+- Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: araç sınıfları (hafif ticari: 50 TL sefer, 5 TL/km, 0,25 kg CO₂/km; kamyonet: 150 / 8 / 0,4; kamyon: 400 / 13 / 0,8; km değerleri tek yön, boş dönüş `EMPTY_RETURN_FACTOR` ile eklenir). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır. Kartta "Araç" satırı.
+- Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `shelfLifeRisk = true`: `score` yarıya iner ve eşleşme sıralamada tüm güvenli eşleşmelerin arkasına düşer. Kartta "Raf ömrü sınırda" rozeti.
+- Karbon fiyatı: `CARBON_PRICE_TRY_PER_KG` ≈ 4,77 TL/kg CO₂ (demo varsayımı) = AB ETS (EUA) birincil piyasa ihale fiyatı 85,89 €/t (EEX "Auction 4. Period DE", 23.10.2026; EEX Primary Market Auction Report 2026) × TCMB EUR döviz alış 55,4997 TL (23.10.2026, bülten 2026/201) / 1000; kaynak bağlantıları `lib/matching.ts`'te yazılı. Yalnızca sıralamada kullanılır, net kâra eklenmez.
+- `score` (0-100) yalnız gösterim: en iyi karbon düzeltmeli değere oran × raf ömrü katsayısı (riskli 0,5); sıralamayı değiştirmez.
+- `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, byMode: { buyerOwn: { matches, eliminated }, thirdParty: { matches, eliminated } } }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir; iki mod tek istekte hesaplanır). `eliminated` = sebebe göre elenen alıcı sayıları (`distance`, `industry`, `shelfLife`, `loss`); `evaluateBuyers(listing, quality, buyers, transportMode = "buyerOwn")` üretir, `matchBuyers` onun `matches` kısmını döner.
+- Sonuç ekranında eşleşme listesinin üstünde "Alıcı teslim alır / Taşıyıcı firma" seçimi; liste, sıralama, harita ve elenme özeti seçili moda göre. Kart detayında iki modun taşıma maliyeti ve net kârı yan yana (diğer modda zarar ediyorsa "Zarar – elenir"). Özete yalnızca `NEARBY_CONTEXT_KM` (100 km) içindeki alıcılar girer; sonuç ekranında tek satır: "2 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."
+- Alıcılar (`data/buyers.ts`): İstanbul/Ankara/Antalya, şehir başına 4 **kurgusal** alıcı (2 kârlı, 1 zarar eden, 1 yarıçap dışı; 2. kârlı alıcının aracı yok: `hasOwnVehicle: false`); gerçek sanayi bölgesi/teknopark konumları. Kurgusal oldukları kodda ve kartta yazılı. Davranış `lib/matching.test.ts` (`npm test`) ile doğrulanır.
 - `quality.isOrganicByproduct === false` ise ilan eşleştirmeye **hiç girmez** (boş liste döner, alıcı aranmaz).
 - Alıcı, ürünün `suitableIndustries` listesiyle kesişmiyorsa ele.
-- Sıralama: önce `netProfit` yüksek, eşitlikte `co2Kg` düşük. İlk sonuç "En Kârlı Eşleşme" olarak vurgulanır.
+- Sıralama: önce raf ömrü güvenli olanlar (`shelfLifeRisk` false); sonra karbon düzeltmeli değer `netProfitTRY − co2Kg × CARBON_PRICE_TRY_PER_KG` (TL'ye yuvarlı) yüksek; eşitlikte `distanceKm` kısa. İlk sonuç "Önerilen Eşleşme" rozetiyle vurgulanır, altında "Kâr ve karbon birlikte değerlendirildi" satırı. En yüksek `netProfitTRY` başka karttaysa o kartta küçük "Size en çok kalan" etiketi görünür.
 - Bu fonksiyon **saf (pure)** olmalı; `matchBuyers(listing, quality, buyers): Match[]`.
 
 ## 7. Gemini Kuralları
@@ -146,32 +161,10 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLEST
 
 ## 9. FAZLAR (her seferinde SADECE biri)
 
-**KURAL: Kullanıcı açıkça "Faz N'i yap" demeden Faz N'e başlama. Faz bitince DUR, yaptıklarını 5 satırda özetle, "Bitti kriterleri"ni tek tek işaretle ve kullanıcının onayını bekle. Sonraki fazın kodunu yazma, hazırlık amaçlı bile olsa.**
+**KURAL: Kullanıcı açıkça "Faz X'i yap" demeden Faz X'e başlama. Faz bitince DUR, yaptıklarını 5 satırda özetle, "Bitti kriterleri"ni tek tek işaretle ve kullanıcının onayını bekle. Sonraki fazın kodunu yazma, hazırlık amaçlı bile olsa.**
 
-### Faz 0 – Kurulum
-- `app` (Expo TS) ve `server` (Node+Express+TS) iskeleti, `.env.example`, `.gitignore` (.env dahil).
-- Paketleri `npx expo install` ile kur (Expo uyumlu sürüm).
-- **Bitti:** `npx expo start` boş ekranı açıyor; `GET /health` → `{ok:true}`.
-
-### Faz 1 – UI İskeleti (AI yok)
-- 3 adımlı akış, form, loading (spinner + "AI Ürün Kalitesini Analiz Ediyor..."), sonuç ekranı (sahte `QualityResult` sabit verisiyle).
-- Foto ve konum seçimi gerçek çalışır.
-- **Bitti:** Form doldurulup "Analiz Et" → 2 sn loading → sonuç ekranı sahte veriyle görünüyor; eksik alanda buton pasif.
-
-### Faz 2 – Gemini Entegrasyonu
-- `POST /analyze` → Gemini → doğrulanmış `QualityResult`.
-- Mobil `api.ts` ile bağla, sahte veriyi kaldır; hata/yeniden dene akışı.
-- **Bitti:** Gerçek bir kabuk fotoğrafı mantıklı puan/bozulma döndürüyor; alakasız foto düşük puan alıyor; ağ hatasında hata ekranı çıkıyor.
-
-### Faz 3 – Lokal Eşleştirme + Harita
-- `buyers.ts` içinde 6-8 kurgusal alıcı (farklı endüstriler, bazıları yarıçap dışında).
-- `POST /match` (veya mobilde saf fonksiyon) → `Match[]`.
-- Sonuç ekranında: "Eşleşme Bulundu" kartları (alıcı, mesafe, taşıma maliyeti, net kâr, CO₂, "Çöpe gitmesi önlenen: X kg", "Kurgusal demo alıcısı") + haritada kullanıcı ve **yalnız yarıçap içindeki** alıcılar + yarıçap dairesi.
-- Eşleşme yoksa "Yakın çapta uygun alıcı bulunamadı" mesajı.
-- **Bitti:** Konum değişince liste/harita değişiyor; yarıçap dışı alıcı görünmüyor; netProfit ≤ 0 olan çıkmıyor.
-
-### Faz 4 – Demo Cilası (opsiyonel, istenirse)
-- Etki özeti satırı (örn. "Bu ilanla ≈X kg CO₂ tasarruf"), küçük UI düzeltmeleri, README (kurulum + demo adımları).
+- Aktif fazlar ve çalışma kuralları (commit/push, isimlendirme): [docs/ROADMAP.md](docs/ROADMAP.md). "Faz X" her zaman ROADMAP'teki fazı ifade eder.
+- Tamamlananlar: ilk prototip (Faz 0-4) ve teslim günü planı (`docs/archive/YOL_HARITASI.md`, eski "Faz A-E"). Arşiv yalnızca geçmiş kaydıdır; fazları referans alınmaz.
 
 ## 10. Hata Önleme Kuralları (Cursor için)
 1. **Uydurma yok.** Emin olmadığın paket/API/prop varsa kurmadan önce resmi dokümanı veya `node_modules` tipini kontrol et. Var olmayan paket ismi yazma.
@@ -184,4 +177,4 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLEST
 8. Fiziksel cihazda backend'e erişim için `localhost` yerine bilgisayarın LAN IP'si kullanılır; bunu `EXPO_PUBLIC_API_URL` ile ayarlanabilir yap.
 9. Hata alırsan: hata mesajını tam oku → kök nedeni bul → tek düzeltme yap → tekrar çalıştır. Aynı şeyi rastgele değiştirip deneme.
 10. Emin olmadığın bir gereksinimde varsayım yapıp ilerleme; kısa bir soru sor.
-11. PDR dışı özellik, auth, DB, ödeme, mesajlaşma **yasak** (bkz. §2).
+11. PDR ve ROADMAP dışı özellik, ödeme, mesajlaşma **yasak** (bkz. §2). Auth ve DB yalnızca ROADMAP Faz C-D kapsamında.

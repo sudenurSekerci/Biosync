@@ -7,6 +7,7 @@ import type { Buyer } from "../lib/schema.js";
 //   - 50 km içinde, farklı endüstrilerden 2 kârlı alıcı
 //   - 50 km içinde ama düşük fiyat + uzak mesafe yüzünden zarar eden 1 alıcı
 //   - 60-80 km uzakta, yarıçap dışı 1 alıcı
+// Her şehrin 2. kârlı alıcısının kendi aracı yok (hasOwnVehicle: false): yalnızca taşıyıcı firma ile.
 // Demo noktaları: İstanbul Ümraniye (41.0160, 29.1200), Ankara Kızılay (39.9200, 32.8540),
 // Antalya Muratpaşa (36.8870, 30.7050). Mesafeler lib/matching.test.ts'te doğrulanır.
 
@@ -20,6 +21,7 @@ export const BUYERS: Buyer[] = [
     lng: 29.0230,
     pricePerKg: 12,
     locationName: "İTÜ Arı Teknokent, Maslak",
+    hasOwnVehicle: true,
     isFictional: true,
   },
   {
@@ -30,6 +32,7 @@ export const BUYERS: Buyer[] = [
     lng: 29.3300,
     pricePerKg: 9,
     locationName: "Tuzla Deri OSB",
+    hasOwnVehicle: false,
     isFictional: true,
   },
   {
@@ -40,6 +43,7 @@ export const BUYERS: Buyer[] = [
     lng: 29.5300,
     pricePerKg: 2,
     locationName: "Dilovası OSB, Kocaeli",
+    hasOwnVehicle: true,
     isFictional: true,
   },
   {
@@ -50,6 +54,7 @@ export const BUYERS: Buyer[] = [
     lng: 28.2470,
     pricePerKg: 14,
     locationName: "Silivri Sanayi Bölgesi",
+    hasOwnVehicle: true,
     isFictional: true,
   },
 
@@ -62,6 +67,7 @@ export const BUYERS: Buyer[] = [
     lng: 32.7760,
     pricePerKg: 13,
     locationName: "ODTÜ Teknokent",
+    hasOwnVehicle: true,
     isFictional: true,
   },
   {
@@ -72,6 +78,7 @@ export const BUYERS: Buyer[] = [
     lng: 32.5600,
     pricePerKg: 8,
     locationName: "Sincan OSB",
+    hasOwnVehicle: false,
     isFictional: true,
   },
   {
@@ -82,6 +89,7 @@ export const BUYERS: Buyer[] = [
     lng: 32.3700,
     pricePerKg: 2.5,
     locationName: "Başkent OSB, Malıköy",
+    hasOwnVehicle: true,
     isFictional: true,
   },
   {
@@ -92,6 +100,7 @@ export const BUYERS: Buyer[] = [
     lng: 32.1500,
     pricePerKg: 15,
     locationName: "Polatlı OSB",
+    hasOwnVehicle: true,
     isFictional: true,
   },
 
@@ -104,6 +113,7 @@ export const BUYERS: Buyer[] = [
     lng: 30.6500,
     pricePerKg: 11,
     locationName: "Antalya Teknokent, Akdeniz Üniversitesi",
+    hasOwnVehicle: true,
     isFictional: true,
   },
   {
@@ -114,6 +124,7 @@ export const BUYERS: Buyer[] = [
     lng: 30.5800,
     pricePerKg: 10,
     locationName: "Antalya OSB, Döşemealtı",
+    hasOwnVehicle: false,
     isFictional: true,
   },
   {
@@ -124,6 +135,7 @@ export const BUYERS: Buyer[] = [
     lng: 31.1000,
     pricePerKg: 2,
     locationName: "Serik Sanayi Sitesi",
+    hasOwnVehicle: true,
     isFictional: true,
   },
   {
@@ -134,6 +146,7 @@ export const BUYERS: Buyer[] = [
     lng: 31.4200,
     pricePerKg: 14,
     locationName: "Manavgat OSB",
+    hasOwnVehicle: true,
     isFictional: true,
   },
 ];

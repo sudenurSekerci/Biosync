@@ -6,6 +6,8 @@ type Props = {
   match: Match;
   quantityKg: number;
   isBest: boolean;
+  // En yüksek net kârlı eşleşme; önerilen eşleşmeden farklıysa ayrıca etiketlenir.
+  isTopProfit: boolean;
   expanded: boolean;
   onPress: () => void;
   // Bu ilan için verilmiş teklif (herhangi bir alıcıya); ilan başına tek teklif.
@@ -31,7 +33,7 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
-function OfferArea({ match, quantityKg, offer, onSendOffer }: Omit<Props, "isBest" | "expanded" | "onPress">) {
+function OfferArea({ match, quantityKg, offer, onSendOffer }: Omit<Props, "isBest" | "isTopProfit" | "expanded" | "onPress">) {
   const [confirming, setConfirming] = useState(false);
   const own = offer?.buyerId === match.buyer.id ? offer : null;
 
@@ -95,17 +97,33 @@ function OfferArea({ match, quantityKg, offer, onSendOffer }: Omit<Props, "isBes
 }
 
 export default function MatchCard(props: Props) {
-  const { match, quantityKg, isBest, expanded, onPress } = props;
+  const { match, quantityKg, isBest, isTopProfit, expanded, onPress } = props;
+  const showTopProfit = isTopProfit && !isBest;
   const { buyer } = match;
 
   return (
     <View style={[styles.card, isBest && styles.bestCard, expanded && styles.expandedCard]}>
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ expanded }}>
-        {isBest && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>En Kârlı Eşleşme</Text>
+        {(isBest || showTopProfit || match.shelfLifeRisk) && (
+          <View style={styles.badges}>
+            {isBest && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Önerilen Eşleşme</Text>
+              </View>
+            )}
+            {showTopProfit && (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>En yüksek kâr</Text>
+              </View>
+            )}
+            {match.shelfLifeRisk && (
+              <View style={[styles.badge, styles.riskBadge]}>
+                <Text style={styles.badgeText}>Raf ömrü sınırda</Text>
+              </View>
+            )}
           </View>
         )}
+        {isBest && <Text style={styles.bestNote}>Kâr ve karbon birlikte değerlendirildi</Text>}
         <View style={styles.headerRow}>
           <Text style={styles.name}>{buyer.name}</Text>
           <Text style={styles.toggle}>{expanded ? "Kapat" : "Detay"}</Text>
@@ -146,14 +164,12 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: "#ddd", borderRadius: 12, padding: 14, gap: 4, backgroundColor: "#fff" },
   bestCard: { borderColor: "#2e7d32", borderWidth: 2, backgroundColor: "#f4f8f4" },
   expandedCard: { borderColor: "#1b3a1b" },
-  badge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#2e7d32",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 4,
-  },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 4 },
+  badge: { backgroundColor: "#2e7d32", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 },
+  riskBadge: { backgroundColor: "#8a4b00" },
+  tag: { borderWidth: 1, borderColor: "#2e7d32", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
+  tagText: { color: "#2e7d32", fontSize: 12, fontWeight: "600" },
+  bestNote: { fontSize: 12, color: "#555", marginBottom: 4 },
   badgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   name: { flex: 1, fontSize: 16, fontWeight: "700", color: "#1b3a1b" },

@@ -75,6 +75,7 @@ export type Match = {
   co2Kg: number;
   netImpactCo2eKg: number; // tahmini: önlenen çöplük emisyonu − taşıma CO₂ (pozitif = tasarruf)
   vehicle: { type: VehicleType; label: string; trips: number }; // miktara göre seçilen araç
+  shelfLifeRisk: boolean; // raf ömrü sınırda: skor yarıya iner, sıralamada güvenlilerin arkasında
   score: number;
 };
 

@@ -56,7 +56,15 @@ function eliminationText(eliminated: EliminationSummary): string | null {
   return text ? `${text} elendi.` : null;
 }
 
-// Tahmini net iklim etkisi (en kârlı eşleşme). Katsayı ve kaynak: server/lib/matching.ts.
+// Sıralama karbon ve raf ömrünü de hesaba kattığı için en yüksek net kâr ilk kartta olmayabilir.
+function topProfitBuyerId(matches: Match[]): string | undefined {
+  return matches.reduce<Match | undefined>(
+    (top, match) => (!top || match.netProfitTRY > top.netProfitTRY ? match : top),
+    undefined
+  )?.buyer.id;
+}
+
+// Tahmini net iklim etkisi (önerilen eşleşme). Katsayı ve kaynak: server/lib/matching.ts.
 function impactText(netImpactCo2eKg: number): string {
   const amount = Math.abs(netImpactCo2eKg).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
   return netImpactCo2eKg >= 0
@@ -119,7 +127,7 @@ function MatchSection({
                   {impactText(matchState.matches[0].netImpactCo2eKg)}
                 </Text>
                 <Text style={styles.impactNote}>
-                  En kârlı eşleşmeye göre: çöplüğe gitmesi önlenen emisyon (EPA WARM tahmini) −
+                  Önerilen eşleşmeye göre: çöplüğe gitmesi önlenen emisyon (EPA WARM tahmini) −
                   taşıma CO₂
                 </Text>
               </View>
@@ -145,6 +153,7 @@ function MatchSection({
                       match={match}
                       quantityKg={listing.quantityKg}
                       isBest={index === 0}
+                      isTopProfit={match.buyer.id === topProfitBuyerId(matchState.matches)}
                       expanded={selection.selectedBuyerId === match.buyer.id}
                       onPress={() => selection.onSelectFromCard(match.buyer.id)}
                       offer={offer}

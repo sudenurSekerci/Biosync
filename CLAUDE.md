@@ -106,6 +106,7 @@ type Match = {
   materialValueTRY: number; netProfitTRY: number; co2Kg: number;
   netImpactCo2eKg: number;   // tahmini: miktar × önlenen çöplük emisyonu − co2Kg (pozitif = tasarruf)
   vehicle: { type: "hafif_ticari" | "kamyonet" | "kamyon"; label: string; trips: number };
+  shelfLifeRisk: boolean;    // raf ömrü sınırda: skor yarıya iner, sıralamada güvenlilerin arkasında
   score: number;
 };
 ```
@@ -119,15 +120,16 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLEST
 - `materialValue = quantityKg * buyer.pricePerKg * (qualityScore/100)`
 - `netProfit = materialValue - transportCost`; `netProfit <= 0` ise eşleşme yok.
 - `co2Kg = trips * distanceKm * emissionKgPerKm` (seçilen aracın araç-km emisyonu).
-- `netImpactCo2eKg = quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg`. Katsayı ≈0,595 kg CO₂e/kg, kaynak EPA WARM v15 (Tablo 1, "Fruits and Vegetables" 0,54 MTCO2E/kısa ton); kaynak `lib/matching.ts`'te yazılı. Ekranda **"tahmini"** ibaresiyle, en kârlı eşleşme için tek satır gösterilir. Kaynaksız katsayı eklenmez.
+- `netImpactCo2eKg = quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg`. Katsayı ≈0,595 kg CO₂e/kg, kaynak EPA WARM v15 (Tablo 1, "Fruits and Vegetables" 0,54 MTCO2E/kısa ton); kaynak `lib/matching.ts`'te yazılı. Ekranda **"tahmini"** ibaresiyle, önerilen (ilk) eşleşme için tek satır gösterilir. Kaynaksız katsayı eklenmez.
 - Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: araç sınıfları (hafif ticari: 50 TL sefer, 10 TL/km, 0,5 kg CO₂/km; kamyonet: 150 / 16 / 0,8; kamyon: 400 / 26 / 1,6; dönüş dahil). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır. Kartta "Araç" satırı.
-- Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `score` yarıya iner.
-- `score` (0-100) yalnız gösterim: en iyi net kâra oran × raf ömrü katsayısı; sıralamayı değiştirmez.
+- Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `shelfLifeRisk = true`: `score` yarıya iner ve eşleşme sıralamada tüm güvenli eşleşmelerin arkasına düşer. Kartta "Raf ömrü sınırda" rozeti.
+- Karbon fiyatı: `CARBON_PRICE_TL_PER_KG` ≈ 4,77 TL/kg CO₂ (demo varsayımı) = AB ETS (EUA) uzlaşma fiyatı 85,92 €/t (23 Ekim 2026) × TCMB EUR döviz alış 55,4997 TL (23.10.2026, bülten 2026/201) / 1000; kaynak bağlantıları `lib/matching.ts`'te yazılı. Yalnızca sıralamada kullanılır, net kâra eklenmez.
+- `score` (0-100) yalnız gösterim: en iyi karbon düzeltmeli değere oran × raf ömrü katsayısı (riskli 0,5); sıralamayı değiştirmez.
 - `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, matches, eliminated }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir). `eliminated` = sebebe göre elenen alıcı sayıları (`distance`, `industry`, `shelfLife`, `loss`); `evaluateBuyers` üretir, `matchBuyers` onun `matches` kısmını döner. Özete yalnızca `NEARBY_CONTEXT_KM` (100 km) içindeki alıcılar girer; sonuç ekranında tek satır: "2 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."
 - Alıcılar (`data/buyers.ts`): İstanbul/Ankara/Antalya, şehir başına 4 **kurgusal** alıcı (2 kârlı, 1 zarar eden, 1 yarıçap dışı); gerçek sanayi bölgesi/teknopark konumları. Kurgusal oldukları kodda ve kartta yazılı. Davranış `lib/matching.test.ts` (`npm test`) ile doğrulanır.
 - `quality.isOrganicByproduct === false` ise ilan eşleştirmeye **hiç girmez** (boş liste döner, alıcı aranmaz).
 - Alıcı, ürünün `suitableIndustries` listesiyle kesişmiyorsa ele.
-- Sıralama: önce `netProfit` yüksek, eşitlikte `co2Kg` düşük. İlk sonuç "En Kârlı Eşleşme" olarak vurgulanır.
+- Sıralama: önce raf ömrü güvenli olanlar (`shelfLifeRisk` false); sonra karbon düzeltmeli değer `netProfitTRY − co2Kg × CARBON_PRICE_TL_PER_KG` (TL'ye yuvarlı) yüksek; eşitlikte `distanceKm` kısa. İlk sonuç "Önerilen Eşleşme" rozetiyle vurgulanır, altında "Kâr ve karbon birlikte değerlendirildi" satırı. En yüksek `netProfitTRY` başka karttaysa o kartta küçük "En yüksek kâr" etiketi görünür.
 - Bu fonksiyon **saf (pure)** olmalı; `matchBuyers(listing, quality, buyers): Match[]`.
 
 ## 7. Gemini Kuralları

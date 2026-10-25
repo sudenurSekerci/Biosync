@@ -6,6 +6,7 @@ import Wordmark from "./Wordmark";
 import { industryInfo } from "../industryInfo";
 import {
   INDUSTRY_LABELS,
+  TRANSPORT_MODE_LABELS,
   type EliminationSummary,
   type Industry,
   type Listing,
@@ -14,7 +15,10 @@ import {
   type Offer,
   type QualityResult,
   type SpoilageStatus,
+  type TransportMode,
 } from "../types";
+
+const TRANSPORT_MODES: TransportMode[] = ["buyerOwn", "thirdParty"];
 
 type Props = {
   result: QualityResult;
@@ -87,8 +91,12 @@ function MatchSection({
   onSendOffer,
   onRetryMatch,
   selection,
+  transportMode,
+  onTransportModeChange,
 }: Pick<Props, "listing" | "matchState" | "offer" | "onSendOffer" | "onRetryMatch"> & {
   selection: Selection;
+  transportMode: TransportMode;
+  onTransportModeChange: (mode: TransportMode) => void;
 }) {
   switch (matchState.status) {
     case "skipped":
@@ -114,17 +122,43 @@ function MatchSection({
         </View>
       );
     case "done": {
-      const eliminatedText = eliminationText(matchState.eliminated);
+      const { matches, eliminated } = matchState.byMode[transportMode];
+      const eliminatedText = eliminationText(eliminated);
+      // Aynı alıcının iki moddaki sonucu (null: o modda zarar nedeniyle elendi).
+      const findIn = (mode: TransportMode, buyerId: string) =>
+        matchState.byMode[mode].matches.find((m) => m.buyer.id === buyerId) ?? null;
+      const comparisonFor = (buyerId: string): Record<TransportMode, Match | null> => ({
+        buyerOwn: findIn("buyerOwn", buyerId),
+        thirdParty: findIn("thirdParty", buyerId),
+      });
       return (
         <>
-          {matchState.matches.length > 0 ? (
+          <View style={styles.modeSwitch} accessibilityRole="radiogroup">
+            {TRANSPORT_MODES.map((mode) => {
+              const active = mode === transportMode;
+              return (
+                <Pressable
+                  key={mode}
+                  style={[styles.modeOption, active && styles.modeOptionActive]}
+                  onPress={() => onTransportModeChange(mode)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
+                >
+                  <Text style={[styles.modeText, active && styles.modeTextActive]}>
+                    {TRANSPORT_MODE_LABELS[mode]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {matches.length > 0 ? (
             <>
               <Text style={styles.matchFound}>
-                Eşleşme Bulundu: {matchState.matches.length} alıcı ({matchState.radiusKm} km içinde)
+                Eşleşme Bulundu: {matches.length} alıcı ({matchState.radiusKm} km içinde)
               </Text>
               <View style={styles.impact}>
                 <Text style={styles.impactText}>
-                  {impactText(matchState.matches[0].netImpactCo2eKg)}
+                  {impactText(matches[0].netImpactCo2eKg)}
                 </Text>
                 <Text style={styles.impactNote}>
                   Önerilen eşleşmeye göre: çöplüğe gitmesi önlenen emisyon (EPA WARM tahmini) −
@@ -135,7 +169,7 @@ function MatchSection({
                 lat={listing.lat}
                 lng={listing.lng}
                 radiusKm={matchState.radiusKm}
-                matches={matchState.matches}
+                matches={matches}
                 selectedBuyerId={selection.selectedBuyerId}
                 onSelectBuyer={selection.onSelectFromMap}
               />
@@ -144,7 +178,7 @@ function MatchSection({
                 style={styles.cards}
                 onLayout={(event) => selection.onCardsLayout(event.nativeEvent.layout.y)}
               >
-                {matchState.matches.map((match, index) => (
+                {matches.map((match, index) => (
                   <View
                     key={match.buyer.id}
                     onLayout={(event) => selection.onCardLayout(match.buyer.id, event.nativeEvent.layout.y)}
@@ -153,7 +187,8 @@ function MatchSection({
                       match={match}
                       quantityKg={listing.quantityKg}
                       isBest={index === 0}
-                      isTopProfit={match.buyer.id === topProfitBuyerId(matchState.matches)}
+                      isTopProfit={match.buyer.id === topProfitBuyerId(matches)}
+                      comparison={comparisonFor(match.buyer.id)}
                       expanded={selection.selectedBuyerId === match.buyer.id}
                       onPress={() => selection.onSelectFromCard(match.buyer.id)}
                       offer={offer}
@@ -172,7 +207,7 @@ function MatchSection({
               </Text>
             </View>
           )}
-          {matchState.matches.length === 0 && (
+          {matches.length === 0 && (
             <MatchMap
               lat={listing.lat}
               lng={listing.lng}
@@ -202,6 +237,7 @@ export default function ResultView({
   const level = scoreLevel(result.qualityScore);
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState<Industry | null>(null);
+  const [transportMode, setTransportMode] = useState<TransportMode>("buyerOwn");
   const scrollRef = useRef<ScrollView>(null);
   const cardsY = useRef(0);
   const cardY = useRef<Record<string, number>>({});
@@ -305,6 +341,8 @@ export default function ResultView({
         onSendOffer={onSendOffer}
         onRetryMatch={onRetryMatch}
         selection={selection}
+        transportMode={transportMode}
+        onTransportModeChange={setTransportMode}
       />
 
       <Pressable style={styles.button} onPress={onReset}>
@@ -348,6 +386,11 @@ const styles = StyleSheet.create({
   industryInfoTitle: { fontSize: 13, fontWeight: "700", color: "#1b3a1b" },
   industryInfoText: { fontSize: 14, color: "#333", lineHeight: 20 },
   cards: { gap: 8 },
+  modeSwitch: { flexDirection: "row", backgroundColor: "#e8f5e9", borderRadius: 8, padding: 3, gap: 3 },
+  modeOption: { flex: 1, borderRadius: 6, paddingVertical: 8, alignItems: "center" },
+  modeOptionActive: { backgroundColor: "#2e7d32" },
+  modeText: { fontSize: 14, fontWeight: "600", color: "#2e7d32" },
+  modeTextActive: { color: "#fff" },
   summary: { fontSize: 15, color: "#333", lineHeight: 22 },
   muted: { fontSize: 13, color: "#777" },
   matchFound: { fontSize: 15, fontWeight: "700", color: "#2e7d32" },

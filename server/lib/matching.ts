@@ -4,6 +4,7 @@ import type {
   Match,
   MatchListing,
   QualityResult,
+  TransportMode,
   VehicleType,
 } from "./schema.js";
 
@@ -19,15 +20,31 @@ export const MAX_RADIUS_KM = 50;
  * - capacityKg:     tek seferde taşınabilecek yük.
  * - baseFeeTRY:     sabit sefer ücreti (araç çağırma, yükleme/boşaltma, şoför zamanı); mesafeden
  *                   bağımsız olduğu için 10-20 kg'lık partilerde uzak alıcılar doğal olarak zarara düşer.
- * - costPerKmTRY:   araç-km maliyeti (yakıt + aşınma), dönüş yolu dahil; tek yön mesafe ile çarpılır.
- * - emissionKgPerKm: kg CO₂ / km, dönüş yolu dahil (yaklaşık: panelvan ≈0,25, kamyonet ≈0,4,
- *                   kamyon ≈0,8 kg/km tek yön × 2); taşınan miktardan bağımsız (araç bazlı).
+ * - costPerKmTRY:   araç-km maliyeti (yakıt + aşınma), TEK YÖN; boş dönüş EMPTY_RETURN_FACTOR ile eklenir.
+ * - emissionKgPerKm: kg CO₂ / araç-km, TEK YÖN (yaklaşık); taşınan miktardan bağımsız (araç bazlı).
  */
 export const VEHICLE_CLASSES: readonly VehicleClass[] = [
-  { type: "hafif_ticari", label: "Hafif ticari (panelvan)", capacityKg: 1_000, baseFeeTRY: 50, costPerKmTRY: 10, emissionKgPerKm: 0.5 },
-  { type: "kamyonet", label: "Kamyonet", capacityKg: 3_500, baseFeeTRY: 150, costPerKmTRY: 16, emissionKgPerKm: 0.8 },
-  { type: "kamyon", label: "Kamyon", capacityKg: 12_000, baseFeeTRY: 400, costPerKmTRY: 26, emissionKgPerKm: 1.6 },
+  { type: "hafif_ticari", label: "Hafif ticari (panelvan)", capacityKg: 1_000, baseFeeTRY: 50, costPerKmTRY: 5, emissionKgPerKm: 0.25 },
+  { type: "kamyonet", label: "Kamyonet", capacityKg: 3_500, baseFeeTRY: 150, costPerKmTRY: 8, emissionKgPerKm: 0.4 },
+  { type: "kamyon", label: "Kamyon", capacityKg: 12_000, baseFeeTRY: 400, costPerKmTRY: 13, emissionKgPerKm: 0.8 },
 ];
+
+/**
+ * Boş dönüş: araç yükü bıraktıktan sonra dönüş yükü olmadan geri döner (her iki taşıma modunda).
+ * Gidilen araç-km = tek yön mesafe × bu katsayı; maliyet ve CO₂ buna göre hesaplanır.
+ */
+export const EMPTY_RETURN_FACTOR = 2;
+
+/**
+ * 3. parti taşıyıcı (transportMode "thirdParty"), sefer başına:
+ *   max(CARRIER_MIN_FEE_TRY, (CARRIER_FIXED_FEE_TRY + araç-km maliyeti × mesafe × EMPTY_RETURN_FACTOR) × (1 + CARRIER_MARGIN))
+ * - CARRIER_FIXED_FEE_TRY: taşıyıcının sabit sefer ücreti (araç sınıfından bağımsız).
+ * - CARRIER_MARGIN:        taşıyıcının kâr payı.
+ * - CARRIER_MIN_FEE_TRY:   kısa mesafede uygulanan asgari sefer ücreti.
+ */
+export const CARRIER_FIXED_FEE_TRY = 150;
+export const CARRIER_MARGIN = 0.25;
+export const CARRIER_MIN_FEE_TRY = 300;
 
 /** Toplama + işleme için gereken asgari süre (gün). Raf ömrü bunun altındaysa eşleşme olmaz. */
 export const HANDLING_DAYS = 1;
@@ -53,13 +70,15 @@ export const AVOIDED_LANDFILL_KG_CO2E_PER_KG = 0.54 / 0.90718474;
 /**
  * Sıralamada taşıma CO₂'sinin parasal karşılığı (TL / kg CO₂). DEMO VARSAYIMI: Türkiye'de bu
  * taşımaya uygulanan bir karbon fiyatı yoktur; referans olarak AB ETS fiyatı TL'ye çevrilmiştir.
- * - AB ETS (EUA) uzlaşma fiyatı: 85,92 € / t CO₂, 23 Ekim 2026
- *   (https://www.purelyenergy.co.uk/tools/carbon/eu-ets, 25 Ekim 2026'da erişildi).
+ * - AB ETS (EUA) birincil piyasa ihale fiyatı: 85,89 € / t CO₂, 23.10.2026, EEX "Auction 4. Period DE"
+ *   (EEX Emission Spot Primary Market Auction Report 2026,
+ *   https://public.eex-group.com/eex/eua-auction-report/emission-spot-primary-market-auction-report-2026-data.xlsx,
+ *   25 Ekim 2026'da erişildi). Aynı gün ikincil piyasa uzlaşması 85,92 €/t (purelyenergy.co.uk), fark ihmal edilebilir.
  * - EUR/TRY: 55,4997 TL, TCMB gösterge döviz alış kuru, 23.10.2026, bülten 2026/201
  *   (https://www.tcmb.gov.tr/kurlar/202610/23102026.xml).
- * 85,92 × 55,4997 / 1000 ≈ 4,77 TL / kg CO₂. Yalnızca sıralamayı etkiler; net kâra eklenmez.
+ * 85,89 × 55,4997 / 1000 ≈ 4,77 TL / kg CO₂. Yalnızca sıralamayı etkiler; net kâra eklenmez.
  */
-export const CARBON_PRICE_TL_PER_KG = (85.92 * 55.4997) / 1000;
+export const CARBON_PRICE_TRY_PER_KG = (85.89 * 55.4997) / 1000;
 
 /**
  * Elenen alıcı özetine yalnızca bu mesafedeki alıcılar girer. Daha uzaktakiler
@@ -104,16 +123,40 @@ export function selectVehicle(quantityKg: number): { vehicle: VehicleClass; trip
 }
 
 /**
+ * Seçilen moda göre toplam taşıma maliyeti ve taşıyıcı payı (TL, yuvarlanmamış).
+ * carrierShareTRY: taşıyıcının kâr payı + asgari ücret tamamlaması (maliyetin araç-km ve sabit ücret
+ * dışındaki kısmı); kendi araçta 0.
+ */
+export function transportCost(
+  mode: TransportMode,
+  vehicle: VehicleClass,
+  trips: number,
+  distanceKm: number
+): { transportCostTRY: number; carrierShareTRY: number } {
+  const kmCost = vehicle.costPerKmTRY * distanceKm * EMPTY_RETURN_FACTOR;
+  if (mode === "buyerOwn") {
+    return { transportCostTRY: trips * (vehicle.baseFeeTRY + kmCost), carrierShareTRY: 0 };
+  }
+  const baseCost = CARRIER_FIXED_FEE_TRY + kmCost;
+  const perTrip = Math.max(CARRIER_MIN_FEE_TRY, baseCost * (1 + CARRIER_MARGIN));
+  return { transportCostTRY: trips * perTrip, carrierShareTRY: trips * (perTrip - baseCost) };
+}
+
+/**
  * Saf fonksiyon: aynı girdiye her zaman aynı çıktı, yan etki yok.
  * Eşleşmeleri ve elenen alıcıların sebebe göre sayısını döner.
  * Sıralama: önce raf ömrü güvenli olanlar; sonra karbon düzeltmeli değer
- * (netProfit − co2Kg × CARBON_PRICE_TL_PER_KG, TL'ye yuvarlı) yüksekten düşüğe; eşitlikte mesafe kısa olan.
+ * (netProfit − co2Kg × CARBON_PRICE_TRY_PER_KG, TL'ye yuvarlı) yüksekten düşüğe; eşitlikte mesafe kısa olan.
  * score (0-100) yalnızca gösterim içindir: en iyi düzeltilmiş değere oranı × raf ömrü katsayısı.
+ * transportMode yalnızca taşıma maliyetini değiştirir; CO₂ (boş dönüş dahil) iki modda aynıdır.
+ * Kendi aracı olmayan alıcı (hasOwnVehicle: false) "buyerOwn" görünümünde elenmez; mümkün olan tek
+ * mod olan "thirdParty" ile hesaplanır (sonuçta transportMode "thirdParty" görünür).
  */
 export function evaluateBuyers(
   listing: MatchListing,
   quality: QualityResult,
-  buyers: Buyer[]
+  buyers: Buyer[],
+  transportMode: TransportMode = "buyerOwn"
 ): { matches: Match[]; eliminated: EliminationSummary } {
   const eliminated: EliminationSummary = { distance: 0, industry: 0, shelfLife: 0, loss: 0 };
   if (!quality.isOrganicByproduct) return { matches: [], eliminated };
@@ -142,7 +185,9 @@ export function evaluateBuyers(
     }
     const shelfLifeRisk = quality.estimatedShelfLifeDays < requiredDays + SHELF_LIFE_BUFFER_DAYS;
 
-    const transportCostTRY = round(trips * (vehicle.baseFeeTRY + vehicle.costPerKmTRY * distanceKm), 0);
+    const mode: TransportMode = buyer.hasOwnVehicle ? transportMode : "thirdParty";
+    const cost = transportCost(mode, vehicle, trips, distanceKm);
+    const transportCostTRY = round(cost.transportCostTRY, 0);
     const materialValueTRY = round(
       listing.quantityKg * buyer.pricePerKg * (quality.qualityScore / 100),
       0
@@ -153,20 +198,22 @@ export function evaluateBuyers(
       continue;
     }
 
-    const co2Kg = round(trips * distanceKm * vehicle.emissionKgPerKm, 1);
+    const co2Kg = round(trips * distanceKm * EMPTY_RETURN_FACTOR * vehicle.emissionKgPerKm, 1);
     // Net iklim etkisi = önlenen çöplük emisyonu − taşıma CO₂ (pozitif = tasarruf).
     const netImpactCo2eKg = round(listing.quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg, 1);
     candidates.push({
       buyer,
       distanceKm,
+      transportMode: mode,
       transportCostTRY,
+      carrierShareTRY: round(cost.carrierShareTRY, 0),
       materialValueTRY,
       netProfitTRY,
       co2Kg,
       netImpactCo2eKg,
       vehicle: { type: vehicle.type, label: vehicle.label, trips },
       shelfLifeRisk,
-      rankValueTRY: round(netProfitTRY - co2Kg * CARBON_PRICE_TL_PER_KG, 0),
+      rankValueTRY: round(netProfitTRY - co2Kg * CARBON_PRICE_TRY_PER_KG, 0),
     });
   }
 
@@ -189,6 +236,11 @@ export function evaluateBuyers(
 }
 
 /** CLAUDE.md §6 imzası: yalnızca sıralı eşleşmeler. */
-export function matchBuyers(listing: MatchListing, quality: QualityResult, buyers: Buyer[]): Match[] {
-  return evaluateBuyers(listing, quality, buyers).matches;
+export function matchBuyers(
+  listing: MatchListing,
+  quality: QualityResult,
+  buyers: Buyer[],
+  transportMode: TransportMode = "buyerOwn"
+): Match[] {
+  return evaluateBuyers(listing, quality, buyers, transportMode).matches;
 }

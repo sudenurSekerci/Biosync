@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { matchRequestSchema, type MatchResponse } from "../lib/schema.js";
+import { matchRequestSchema, TRANSPORT_MODES, type MatchResponse } from "../lib/schema.js";
 import { evaluateBuyers, MAX_RADIUS_KM } from "../lib/matching.js";
 import { BUYERS } from "../data/buyers.js";
 
@@ -14,11 +14,17 @@ matchRouter.post("/match", (req, res) => {
   }
 
   const { quality, ...listing } = parsed.data;
-  const { matches, eliminated } = evaluateBuyers(listing, quality, BUYERS);
-  console.log(
-    `[match] ${matches.length} eşleşme (${listing.quantityKg} kg, organik=${quality.isOrganicByproduct}) elenen=${JSON.stringify(eliminated)}`
-  );
+  const byMode: MatchResponse["byMode"] = {
+    buyerOwn: evaluateBuyers(listing, quality, BUYERS, "buyerOwn"),
+    thirdParty: evaluateBuyers(listing, quality, BUYERS, "thirdParty"),
+  };
+  for (const mode of TRANSPORT_MODES) {
+    const { matches, eliminated } = byMode[mode];
+    console.log(
+      `[match] ${mode}: ${matches.length} eşleşme (${listing.quantityKg} kg, organik=${quality.isOrganicByproduct}) elenen=${JSON.stringify(eliminated)}`
+    );
+  }
 
-  const body: MatchResponse = { radiusKm: MAX_RADIUS_KM, matches, eliminated };
+  const body: MatchResponse = { radiusKm: MAX_RADIUS_KM, byMode };
   res.json(body);
 });

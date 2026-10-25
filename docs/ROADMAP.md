@@ -20,7 +20,7 @@
 
 ## Faz A — Eşleştirme düzeltmeleri
 Sadece matching modülü + testleri.
-1. `CARBON_PRICE_TL_PER_KG` sabiti (demo varsayımı, yorumla belirt; referans: AB ETS karbon fiyatı TL'ye çevrilmiş, kaynak ve tarih yorumda). Sıralama: `netProfit - co2Kg * CARBON_PRICE_TL_PER_KG`; eşitlikte mesafe.
+1. `CARBON_PRICE_TRY_PER_KG` sabiti (demo varsayımı, yorumla belirt; referans: AB ETS karbon fiyatı TL'ye çevrilmiş, kaynak ve tarih yorumda). Sıralama: `netProfit - co2Kg * CARBON_PRICE_TRY_PER_KG`; eşitlikte mesafe.
 2. Raf ömrü riskliyse ceza sıralamaya yansısın. Sonuca `shelfLifeRisk: boolean` ekle. **Yeni puan alanı açılmaz:** mevcut gösterim puanı `score` korunur, ceza ona da yansır. UI'da "Raf ömrü sınırda" rozeti.
 3. Testler: daha kârlı ama uzak alıcı karbon düzeltmesiyle geri düşebilir; riskli eşleşme güvenlinin önüne geçemez.
 
@@ -29,14 +29,15 @@ Sadece matching modülü + testleri + teklif ekranında seçim. Taşıyıcı ayr
 1. `transportMode: 'buyerOwn' | 'thirdParty'` parametresi (varsayılan `buyerOwn`).
 2. **Boş dönüş her iki modda da sayılır** (alıcının kendi aracı da boş döner; aksi halde iki mod haksız kıyaslanır). `buyerOwn` maliyetine yalnızca dönüş km'si eklenir, başka davranış değişmez; etkilenen mevcut testler buna göre güncellenir ve ESLESTIRME_MANTIGI.md'ye not düşülür.
 3. `thirdParty` maliyeti (sabitler config'te, demo varsayımı):
-   `max(CARRIER_MIN_FEE_TL, (CARRIER_FIXED_FEE_TL + aracınKmMaliyeti * mesafe * EMPTY_RETURN_FACTOR) * (1 + CARRIER_MARGIN)) * seferSayısı`
+   `max(CARRIER_MIN_FEE_TRY, (CARRIER_FIXED_FEE_TRY + aracınKmMaliyeti * mesafe * EMPTY_RETURN_FACTOR) * (1 + CARRIER_MARGIN)) * seferSayısı`
    - `EMPTY_RETURN_FACTOR`: boş dönüş (dönüş yükü yok varsayımı, ~2).
    - `CARRIER_MARGIN`: taşıyıcı kâr payı (ör. 0.25).
-   - `CARRIER_MIN_FEE_TL`: kısa mesafe minimum sefer ücreti.
+   - `CARRIER_MIN_FEE_TRY`: kısa mesafe minimum sefer ücreti.
 4. CO₂: boş dönüş km'si her iki modda da CO₂'ye eklenir (aynı araç katsayısıyla).
 5. Maliyeti alıcı öder (mevcut net kâr mantığı); zarar eden alıcı eleme kuralı her iki modda da geçerli.
-6. Sonuca `transportMode`, `transportCostTl`, `carrierShareTl` (taşıyıcı payı) ekle.
-7. UI: teklif ekranında "Kendi aracı / Taşıyıcı firma" seçimi; iki modun maliyet ve net kâr farkı yan yana.
+6. Sonuca `transportMode`, `carrierShareTRY` (taşıyıcı payı) ekle; maliyet mevcut `transportCostTRY` alanında kalır.
+   - Alıcıya `hasOwnVehicle: boolean`; aracı olmayan alıcı "Alıcı teslim alır" görünümünde elenmez, yalnızca taşıyıcı ile hesaplanır ("Aracı yok – yalnızca taşıyıcı ile").
+7. UI: teklif ekranında "Alıcı teslim alır / Taşıyıcı firma" seçimi; iki modun maliyet ve net kâr farkı yan yana.
 8. Testler: kısa mesafede minimum ücret devreye girer; 3. parti mod aynı alıcıyı eleyebilir (kendi araçta kârlıyken); boş dönüş her iki modda CO₂'yi artırır.
 
 ## Faz B — Fotoğraf yükleme kuralları
@@ -55,9 +56,9 @@ Sadece matching modülü + testleri + teklif ekranında seçim. Taşıyıcı ayr
 ## Faz D — Firestore + Türkiye geneli
 Koleksiyonlar:
 - `users` {uid, role: producer|buyer|admin, name, city, location, kvkkAcceptedAt}
-- `listings` {ownerUid, wasteType, kg, location, photoUrl?, ai: {...}, status, createdAt}
-- `buyers` {uid?, name, industry, acceptedWasteTypes[], monthlyCapacityKg, pricePerKg, location, city}
-- `matches` {listingId, buyerId, distanceKm, costTl, co2Kg, netProfit, status: offered|accepted|rejected|completed, rating?}
+- `listings` {ownerUid, wasteType, quantityKg, location, photoUrl?, ai: {...}, status, createdAt}
+- `buyers` {uid?, name, industries[], acceptedWasteTypes[], monthlyCapacityKg, pricePerKg, hasOwnVehicle, location, city}
+- `matches` {listingId, buyerId, distanceKm, transportMode, transportCostTRY, co2Kg, netProfitTRY, status: offered|accepted|rejected|completed, rating?}
 - `impact` {global: totalKgDiverted, totalCo2AvoidedKg, completedMatches}
 1. Kodda sabit alıcıları seed script ile Firestore'a taşı.
 2. Türkiye geneli: sanayi yoğun illerde (OSB'ler) kurgusal alıcılar seed'le; her alıcı gerçekçi koordinat + 1–3 kabul edilen atık türü. Harita merkezi kullanıcı konumu; 50 km sınırı aynen kalır. Alıcı sayısı küçük olduğu için sunucu tüm alıcıları okuyup Node'da filtreler (geo sorgu sonraki aşama).
@@ -67,8 +68,9 @@ Koleksiyonlar:
 
 ## Faz E — Paneller + katkı toplamı + puanlama
 - **Üretici:** ilanlarım, eşleşmeler, teklif durumu. Üstte katkı kartı: toplam yönlendirilen kg, önlenen CO₂, tamamlanan eşleşme.
-- **Alıcı:** profil (kabul edilen atık türleri, aylık kapasite), gelen teklifler (kabul/red), aynı katkı kartı.
-  - Eşleştirmeye iki filtre: `wasteType ∈ acceptedWasteTypes`, `kg ≤ kalan kapasite`.
+- **Alıcı:** profil (kabul edilen atık türleri, aylık kapasite, `hasOwnVehicle` — alıcı kendisi belirler), gelen teklifler (kabul/red), aynı katkı kartı.
+  - Alıcı panelinde teslim fiyatı (`materialValueTRY`) alıcının **toplam maliyeti** olarak gösterilir (taşıma bunun içinde; satıcıya kalan = teslim fiyatı − taşıma).
+  - Eşleştirmeye iki filtre: `wasteType ∈ acceptedWasteTypes`, `quantityKg ≤ kalan kapasite`.
   - **Kalan kapasite** = `monthlyCapacityKg` − içinde bulunulan takvim ayında `accepted/completed` olan eşleşmelerin kg toplamı; ay başında kendiliğinden sıfırlanır (ayrı sayaç tutulmaz, sorguyla hesaplanır).
 - **Puanlama:** `completed` eşleşmede alıcı satıcıya 1–5 puan; satıcı ortalaması ilan kartında görünür.
 - **Admin (minimal):** 50 ton hedefine ilerleme çubuğu, kullanıcı/ilan listesi.

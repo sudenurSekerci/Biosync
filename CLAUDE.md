@@ -99,10 +99,14 @@ type QualityResult = {
 };
 
 type Buyer = { id: string; name: string; industries: Industry[]; lat: number; lng: number; pricePerKg: number;
-  locationName: string; isFictional: true };   // locationName: gerçek bölge adı; alıcı kurgusal
+  locationName: string; hasOwnVehicle: boolean; isFictional: true };   // locationName: gerçek bölge adı; alıcı kurgusal
+
+type TransportMode = "buyerOwn" | "thirdParty";   // alıcının kendi aracı | 3. parti taşıyıcı
 
 type Match = {
-  buyer: Buyer; distanceKm: number; transportCostTRY: number;
+  buyer: Buyer; distanceKm: number;
+  transportMode: TransportMode; transportCostTRY: number;
+  carrierShareTRY: number;   // taşıyıcı payı (kâr payı + asgari ücret tamamlaması); buyerOwn'da 0
   materialValueTRY: number; netProfitTRY: number; co2Kg: number;
   netImpactCo2eKg: number;   // tahmini: miktar × önlenen çöplük emisyonu − co2Kg (pozitif = tasarruf)
   vehicle: { type: "hafif_ticari" | "kamyonet" | "kamyon"; label: string; trips: number };
@@ -116,20 +120,26 @@ Formüllerin, sabitlerin ve kararların ayrıntılı açıklaması: [docs/ESLEST
 
 - Mesafe: **Haversine**, km.
 - `MAX_RADIUS_KM` sabiti (varsayılan 50) tek yerde tanımlı; bunu aşan alıcı **listeye girmez**.
-- Taşıma **araç bazlı, kapasiteli**: `selectVehicle(quantityKg)` miktarı taşıyabilen en küçük aracı seçer (`VEHICLE_CLASSES`: hafif ticari 1 t / kamyonet 3,5 t / kamyon 12 t); 12 t üstü çoklu kamyon seferi. `transportCost = trips * (baseFeeTRY + costPerKmTRY * distanceKm)`
+- Taşıma **araç bazlı, kapasiteli**: `selectVehicle(quantityKg)` miktarı taşıyabilen en küçük aracı seçer (`VEHICLE_CLASSES`: hafif ticari 1 t / kamyonet 3,5 t / kamyon 12 t); 12 t üstü çoklu kamyon seferi. Boş dönüş **her iki modda** sayılır: araç-km = `distanceKm * EMPTY_RETURN_FACTOR` (2).
+  - `buyerOwn` (varsayılan): `transportCost = trips * (baseFeeTRY + costPerKmTRY * distanceKm * EMPTY_RETURN_FACTOR)`
+  - `thirdParty`: `transportCost = trips * max(CARRIER_MIN_FEE_TRY, (CARRIER_FIXED_FEE_TRY + costPerKmTRY * distanceKm * EMPTY_RETURN_FACTOR) * (1 + CARRIER_MARGIN))`; sabitler 150 TL / %25 / asgari 300 TL. `carrierShareTRY` = maliyetin sabit ücret + araç-km dışındaki kısmı.
+  - Maliyeti her iki modda alıcı öder; zarar eden alıcı eleme kuralı iki modda da geçerli. Taşıyıcı ayrı kullanıcı rolü değildir.
+  - `buyer.hasOwnVehicle === false` ise "Alıcı teslim alır" görünümünde alıcı elenmez; mümkün olan tek mod `thirdParty` ile hesaplanır (sonuçta `transportMode: "thirdParty"`), sıralama ve "Önerilen" bu rakamla. Kartta "Aracı yok – yalnızca taşıyıcı ile" etiketi; detayda yalnızca taşıyıcı maliyeti.
 - `materialValue = quantityKg * buyer.pricePerKg * (qualityScore/100)`
 - `netProfit = materialValue - transportCost`; `netProfit <= 0` ise eşleşme yok.
-- `co2Kg = trips * distanceKm * emissionKgPerKm` (seçilen aracın araç-km emisyonu).
+  - Anlamı: `pricePerKg` alıcının **tesise teslim** fiyatıdır. Taşımayı alıcı ayarlar/öder ve bu fiyattan düşer; `netProfitTRY` **satıcıya kalan** tutardır, alıcının toplam harcaması `materialValueTRY`'dir. Ekranda: "Alıcı teslim fiyatı", "Taşıma (teslim fiyatından düşülür)", "Size kalan (net)".
+- `co2Kg = trips * distanceKm * EMPTY_RETURN_FACTOR * emissionKgPerKm` (seçilen aracın tek yön araç-km emisyonu; iki modda aynı).
 - `netImpactCo2eKg = quantityKg * AVOIDED_LANDFILL_KG_CO2E_PER_KG - co2Kg`. Katsayı ≈0,595 kg CO₂e/kg, kaynak EPA WARM v15 (Tablo 1, "Fruits and Vegetables" 0,54 MTCO2E/kısa ton); kaynak `lib/matching.ts`'te yazılı. Ekranda **"tahmini"** ibaresiyle, önerilen (ilk) eşleşme için tek satır gösterilir. Kaynaksız katsayı eklenmez.
-- Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: araç sınıfları (hafif ticari: 50 TL sefer, 10 TL/km, 0,5 kg CO₂/km; kamyonet: 150 / 16 / 0,8; kamyon: 400 / 26 / 1,6; dönüş dahil). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır. Kartta "Araç" satırı.
+- Tüm sabitler `lib/matching.ts` başında "DEMO VARSAYIMLARI" olarak açıklamalı: araç sınıfları (hafif ticari: 50 TL sefer, 5 TL/km, 0,25 kg CO₂/km; kamyonet: 150 / 8 / 0,4; kamyon: 400 / 13 / 0,8; km değerleri tek yön, boş dönüş `EMPTY_RETURN_FACTOR` ile eklenir). Sabit sefer ücreti yüzünden 10-20 kg'lık partilerde yalnızca çok yakın alıcılar kârlı kalır. Kartta "Araç" satırı.
 - Raf ömrü: gereken süre = `HANDLING_DAYS` + yol süresi; raf ömrü bundan kısaysa ele, `SHELF_LIFE_BUFFER_DAYS`'ten az pay varsa `shelfLifeRisk = true`: `score` yarıya iner ve eşleşme sıralamada tüm güvenli eşleşmelerin arkasına düşer. Kartta "Raf ömrü sınırda" rozeti.
-- Karbon fiyatı: `CARBON_PRICE_TL_PER_KG` ≈ 4,77 TL/kg CO₂ (demo varsayımı) = AB ETS (EUA) uzlaşma fiyatı 85,92 €/t (23 Ekim 2026) × TCMB EUR döviz alış 55,4997 TL (23.10.2026, bülten 2026/201) / 1000; kaynak bağlantıları `lib/matching.ts`'te yazılı. Yalnızca sıralamada kullanılır, net kâra eklenmez.
+- Karbon fiyatı: `CARBON_PRICE_TRY_PER_KG` ≈ 4,77 TL/kg CO₂ (demo varsayımı) = AB ETS (EUA) birincil piyasa ihale fiyatı 85,89 €/t (EEX "Auction 4. Period DE", 23.10.2026; EEX Primary Market Auction Report 2026) × TCMB EUR döviz alış 55,4997 TL (23.10.2026, bülten 2026/201) / 1000; kaynak bağlantıları `lib/matching.ts`'te yazılı. Yalnızca sıralamada kullanılır, net kâra eklenmez.
 - `score` (0-100) yalnız gösterim: en iyi karbon düzeltmeli değere oran × raf ömrü katsayısı (riskli 0,5); sıralamayı değiştirmez.
-- `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, matches, eliminated }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir). `eliminated` = sebebe göre elenen alıcı sayıları (`distance`, `industry`, `shelfLife`, `loss`); `evaluateBuyers` üretir, `matchBuyers` onun `matches` kısmını döner. Özete yalnızca `NEARBY_CONTEXT_KM` (100 km) içindeki alıcılar girer; sonuç ekranında tek satır: "2 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."
-- Alıcılar (`data/buyers.ts`): İstanbul/Ankara/Antalya, şehir başına 4 **kurgusal** alıcı (2 kârlı, 1 zarar eden, 1 yarıçap dışı); gerçek sanayi bölgesi/teknopark konumları. Kurgusal oldukları kodda ve kartta yazılı. Davranış `lib/matching.test.ts` (`npm test`) ile doğrulanır.
+- `POST /match` gövdesi `{ quantityKg, lat, lng, quality }` (görsel tekrar gönderilmez), yanıtı `{ radiusKm, byMode: { buyerOwn: { matches, eliminated }, thirdParty: { matches, eliminated } } }` (harita dairesi için `MAX_RADIUS_KM` buradan gelir; iki mod tek istekte hesaplanır). `eliminated` = sebebe göre elenen alıcı sayıları (`distance`, `industry`, `shelfLife`, `loss`); `evaluateBuyers(listing, quality, buyers, transportMode = "buyerOwn")` üretir, `matchBuyers` onun `matches` kısmını döner.
+- Sonuç ekranında eşleşme listesinin üstünde "Alıcı teslim alır / Taşıyıcı firma" seçimi; liste, sıralama, harita ve elenme özeti seçili moda göre. Kart detayında iki modun taşıma maliyeti ve net kârı yan yana (diğer modda zarar ediyorsa "Zarar – elenir"). Özete yalnızca `NEARBY_CONTEXT_KM` (100 km) içindeki alıcılar girer; sonuç ekranında tek satır: "2 alıcı zarar nedeniyle, 1 alıcı mesafe nedeniyle elendi."
+- Alıcılar (`data/buyers.ts`): İstanbul/Ankara/Antalya, şehir başına 4 **kurgusal** alıcı (2 kârlı, 1 zarar eden, 1 yarıçap dışı; 2. kârlı alıcının aracı yok: `hasOwnVehicle: false`); gerçek sanayi bölgesi/teknopark konumları. Kurgusal oldukları kodda ve kartta yazılı. Davranış `lib/matching.test.ts` (`npm test`) ile doğrulanır.
 - `quality.isOrganicByproduct === false` ise ilan eşleştirmeye **hiç girmez** (boş liste döner, alıcı aranmaz).
 - Alıcı, ürünün `suitableIndustries` listesiyle kesişmiyorsa ele.
-- Sıralama: önce raf ömrü güvenli olanlar (`shelfLifeRisk` false); sonra karbon düzeltmeli değer `netProfitTRY − co2Kg × CARBON_PRICE_TL_PER_KG` (TL'ye yuvarlı) yüksek; eşitlikte `distanceKm` kısa. İlk sonuç "Önerilen Eşleşme" rozetiyle vurgulanır, altında "Kâr ve karbon birlikte değerlendirildi" satırı. En yüksek `netProfitTRY` başka karttaysa o kartta küçük "En yüksek kâr" etiketi görünür.
+- Sıralama: önce raf ömrü güvenli olanlar (`shelfLifeRisk` false); sonra karbon düzeltmeli değer `netProfitTRY − co2Kg × CARBON_PRICE_TRY_PER_KG` (TL'ye yuvarlı) yüksek; eşitlikte `distanceKm` kısa. İlk sonuç "Önerilen Eşleşme" rozetiyle vurgulanır, altında "Kâr ve karbon birlikte değerlendirildi" satırı. En yüksek `netProfitTRY` başka karttaysa o kartta küçük "Size en çok kalan" etiketi görünür.
 - Bu fonksiyon **saf (pure)** olmalı; `matchBuyers(listing, quality, buyers): Match[]`.
 
 ## 7. Gemini Kuralları

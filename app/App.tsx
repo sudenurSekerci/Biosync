@@ -65,9 +65,9 @@ export default function App() {
     }
     setMatchState({ status: "loading" });
     try {
-      const { radiusKm, matches, eliminated } = await findMatches(listing, quality);
+      const { radiusKm, byMode } = await findMatches(listing, quality);
       if (requestId === matchRequestId.current) {
-        setMatchState({ status: "done", radiusKm, matches, eliminated });
+        setMatchState({ status: "done", radiusKm, byMode });
       }
     } catch (err) {
       if (requestId === matchRequestId.current) {

@@ -61,15 +61,22 @@ export type Buyer = {
   lng: number;
   pricePerKg: number;
   locationName: string; // gerçek sanayi bölgesi/teknopark adı; alıcının kendisi kurgusal
+  hasOwnVehicle: boolean; // false: "Alıcı teslim alır" mümkün değil, yalnızca taşıyıcı firma ile
   isFictional: true;
 };
 
 export type VehicleType = "hafif_ticari" | "kamyonet" | "kamyon";
 
+// buyerOwn: alıcının kendi aracı; thirdParty: 3. parti taşıyıcı firma. Maliyeti her iki modda alıcı öder.
+export type TransportMode = "buyerOwn" | "thirdParty";
+export const TRANSPORT_MODES = ["buyerOwn", "thirdParty"] as const satisfies readonly TransportMode[];
+
 export type Match = {
   buyer: Buyer;
   distanceKm: number;
-  transportCostTRY: number;
+  transportMode: TransportMode;
+  transportCostTRY: number; // seçilen modda toplam taşıma (boş dönüş dahil)
+  carrierShareTRY: number; // taşıyıcı payı (kâr payı + asgari ücret tamamlaması); kendi araçta 0
   materialValueTRY: number;
   netProfitTRY: number;
   co2Kg: number;
@@ -83,7 +90,9 @@ export type Match = {
 export type EliminationSummary = { distance: number; industry: number; shelfLife: number; loss: number };
 
 // MAX_RADIUS_KM tek yerde (lib/matching.ts) tanımlı; harita dairesi için yanıtla gönderilir.
-export type MatchResponse = { radiusKm: number; matches: Match[]; eliminated: EliminationSummary };
+export type ModeResult = { matches: Match[]; eliminated: EliminationSummary };
+// İki taşıma modu tek yanıtta: istemci seçimi anında değiştirir ve kartta yan yana kıyaslar.
+export type MatchResponse = { radiusKm: number; byMode: Record<TransportMode, ModeResult> };
 
 export type Industry = z.infer<typeof industrySchema>;
 export type SpoilageStatus = z.infer<typeof spoilageStatusSchema>;
